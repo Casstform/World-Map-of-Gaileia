@@ -1,0 +1,2160 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>World of Gaileia</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+html, body { height:100%; margin:0; }
+#map { height:100%; width:100%; background:#000; }
+
+@font-face {
+  font-family: "Macondo Swash Caps";
+  src: url("fonts/MacondoSwashCaps-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+body,
+.side-panel,
+.side-panel * {
+  font-family: "Macondo Swash Caps", system-ui, sans-serif !important;
+}
+
+html, body, #map {
+  font-family: "Macondo Swash Caps", system-ui, sans-serif;
+}
+
+.leaflet-container,
+.leaflet-control,
+.leaflet-control-layers,
+.leaflet-popup,
+.leaflet-tooltip,
+.leaflet-bar,
+.leaflet-control-zoom,
+.ruler-label,
+.ruler-total-tooltip,
+.side-panel {
+  font-family: "Macondo Swash Caps", system-ui, sans-serif !important;
+}
+
+.leaflet-popup-content,
+.leaflet-tooltip {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* ---------------- RULER UI ---------------- */
+.ruler-label {
+  background: rgba(0,0,0,.7);
+  color:#fff;
+  padding:2px 6px;
+  border-radius:8px;
+  font-size: 12px;
+  white-space:nowrap;
+  pointer-events:none;
+}
+
+.ruler-total-tooltip {
+  background: rgba(0,0,0,.8) !important;
+  color:#fff !important;
+  border-radius:10px;
+  padding:4px 8px;
+  font-size: 12px;
+}
+
+/* ---------------- SIDE PANEL ---------------- */
+.side-panel.open { transform: translateX(0); }
+
+.side-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: min(420px, 92vw);
+  z-index: 1200;
+
+  background: rgba(0, 0, 0, 0.95);
+  color: #f3ead8;
+
+  box-shadow: 20px 0 50px rgba(0,0,0,0.45);
+
+  transform: translateX(-105%);
+  transition: transform 180ms ease;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.side-panel__header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 14px 14px 10px 14px;
+  border-bottom: 1px solid rgba(40, 22, 12, 0.18);
+}
+
+.side-panel__title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  font-size: 25px;
+  letter-spacing: 0.04em;
+  pointer-events: auto;
+}
+
+.side-panel__close {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: auto;
+
+  width: 36px;
+  height: 36px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-family: "Macondo Swash Caps", system-ui, sans-serif;
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+
+  color: #f4e8d4;
+  cursor: pointer;
+}
+
+.side-panel__close::before {
+  content: "X";
+  font-size: 22px;
+  display: block;
+}
+
+.side-panel__close:hover {
+  color: #ffd7a0;
+  text-shadow:
+    0 0 3px rgba(255, 220, 160, 0.6),
+    0 0 6px rgba(255, 200, 120, 0.4);
+}
+
+.side-panel__close:active { transform: scale(0.9); }
+
+.side-panel__body{
+  padding: 14px;
+  overflow:auto;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.panel-hero{
+  display:flex;
+  align-items:center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.panel-hero img{
+  width: 130px;
+  height: auto;
+  object-fit: contain;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0);
+  padding: 6px;
+  filter: drop-shadow(0 0 6px rgba(255, 215, 160, 0.25));
+}
+
+.panel-hero-title{
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 10px;
+}
+
+.panel-hero .muted{ font-size: 15px; }
+
+.panel-hero-text{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.side-panel__body h3{
+  margin: 14px 0 8px 0;
+  font-size: 17px;
+  letter-spacing: .02em;
+  text-transform: capitalize;
+  opacity: 0.85;
+}
+.side-panel__body ul{ margin: 0; padding-left: 18px; }
+.side-panel__body li{ margin: 6px 0; }
+
+.party-coords {
+  color: #ffd7a0;
+  font-weight: 200;
+  transition: text-shadow 240ms ease;
+}
+
+.party-coords:hover {
+  text-shadow:
+    0 0 4px rgba(212,175,55,0.7),
+    0 0 8px rgba(212,175,55,0.5),
+    0 0 14px rgba(212,175,55,0.35);
+}
+
+.panel-subtitle {
+  font-size: 1.6rem;
+  font-weight: 500;
+  margin-top: 20px;
+  margin-bottom: 8px;
+  letter-spacing: 0.6px;
+}
+
+.guild-link {
+  color: #ffc573;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 240ms ease, text-shadow 240ms ease;
+}
+
+.guild-link:hover {
+  color: #fff2dc;
+  text-shadow:
+    0 0 6px rgba(255, 215, 160, 0.6);
+}
+
+
+/* ---------------- LAYERS CONTROL ---------------- */
+.leaflet-control-layers {
+  z-index: 800;
+  background: rgba(0,0,0,0.78);
+  color: #fff;
+  border-radius: 14px;
+  padding: 10px 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  backdrop-filter: blur(6px);
+}
+
+.leaflet-control-layers-expanded { border: none; }
+.leaflet-control-layers-base,
+.leaflet-control-layers-overlays { margin-bottom: 8px; }
+
+.leaflet-control-layers label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 2px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.leaflet-control-layers input {
+  accent-color: #ffd166;
+  cursor: pointer;
+}
+
+.leaflet-control-layers label:hover {
+  background: rgba(255,255,255,0.08);
+  border-radius: 8px;
+}
+
+.leaflet-control-layers-separator {
+  border-top: 1px solid rgba(255,255,255,0.15);
+  margin: 6px 0;
+}
+
+/* Make the layers control less wide */
+.leaflet-control-layers {
+  width: 200px;       /* Adjust this to make layer control box larger */
+  max-width: 230px;
+}
+
+/* Allow long labels to wrap instead of forcing width wider */
+.leaflet-control-layers label {
+  white-space: normal;
+  align-items: flex-start;
+}
+
+/* Give the label text area a predictable wrap zone */
+.leaflet-control-layers label span {
+  display: inline-block;
+  max-width: 199px;   /* <-- should be a bit less than control width */
+  line-height: 1.15;
+}
+
+/* Keep checkboxes/radios from shrinking when text wraps */
+.leaflet-control-layers input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+/* --- Legend collapse behavior (animated like Search panel) --- */
+.leaflet-control-layers .legend-title {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* We will wrap all non-title content in .legend-body and animate it */
+.leaflet-control-layers .legend-body {
+  overflow: hidden;
+  max-height: 1200px; /* big enough for full Legend contents */
+  opacity: 1;
+  transform: translateY(0);
+  transition: max-height 540ms ease, opacity 540ms ease, transform 540ms ease;
+}
+
+.leaflet-control-layers.legend-collapsed .legend-body {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+}
+
+/* ---------------- LEGEND SEARCH (button + collapsible panel) ---------------- */
+.legend-btn {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 235, 205, 0.25);
+  background: rgba(0, 0, 0, 0.548);
+  color: #f6ecd8;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-family: "Macondo Swash Caps", system-ui, sans-serif;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;  
+}
+
+.legend-btn:hover {
+  background: rgba(255, 235, 205, 0.10);
+}
+
+.legend-btn {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none;
+}
+
+.legend-btn:focus,
+.legend-btn:focus-visible,
+.legend-btn:active {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none;
+}
+
+/* Button "active/on" state (gold) */
+.legend-btn.is-on {
+  color: #ffd166;
+  background: rgba(255, 209, 102, 0.12);
+  text-shadow:
+    0 0 6px rgba(255, 220, 160, 0.35),
+    0 0 12px rgba(255, 200, 120, 0.20);
+}
+
+.legend-btn.is-on:hover {
+  background: rgba(255, 209, 102, 0.18);
+}
+
+.legend-search-panel {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: max-height 540ms ease, opacity 540ms ease, transform 540ms ease;
+  margin-top: 6px;
+}
+
+.legend-search-toggle {
+  text-align: center;
+}
+
+.legend-search-panel.is-open {
+  max-height: 260px; /* big enough to show input + a few results */
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.legend-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 235, 205, 0.35);
+  padding: 8px 10px;
+  background: rgba(0,0,0,0.35);
+  color: #f6ecd8;
+  outline: none;
+  font-family: "Macondo Swash Caps", system-ui, sans-serif;
+  font-size: 14px;
+}
+
+.legend-search-input::placeholder {
+  color: rgba(246,236,216,0.75);
+}
+
+.legend-search-results {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.legend-search-item {
+  text-align: left;
+  border-radius: 10px;
+  border: 0;                 /* no border */
+  outline: none;             /* prevent focus ring outline */
+  background: rgba(0,0,0,0.25);
+  color: #f6ecd8;
+  padding: 7px 9px;
+  cursor: pointer;
+  font-family: "Macondo Swash Caps", system-ui, sans-serif;
+  font-size: 14px;
+}
+
+.legend-search-item:focus,
+.legend-search-item:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.legend-search-toggle {
+  border: 0 !important;
+}
+
+.legend-search-item:hover {
+  background: rgba(255, 235, 205, 0.10);
+}
+
+.legend-search-tag {
+  float: right;
+  opacity: 0.75;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+/* ---------------- PLACE SEARCH CONTROL ---------------- */
+.leaflet-control.place-search {
+  background: rgba(0,0,0,0.78);
+  color: #fff;
+  border-radius: 14px;
+  padding: 10px 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  backdrop-filter: blur(6px);
+  width: 200px;         /* match your layers control width */
+  max-width: 230px;
+}
+
+.place-search__title {
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  text-transform: capitalize;
+  margin: 0 0 6px 0;
+  padding: 2px 0 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+  opacity: 0.95;
+  text-align: center;
+  cursor: default;
+  user-select: none;
+}
+
+.place-search__input {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 235, 205, 0.35);
+  padding: 8px 10px;
+  background: rgba(0,0,0,0.35);
+  color: #f6ecd8;
+  outline: none;
+  font-family: "Macondo Swash Caps", system-ui, sans-serif;
+  font-size: 14px;
+}
+
+.place-search__input::placeholder {
+  color: rgba(246,236,216,0.75);
+}
+
+.place-search__results {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.place-search__item {
+  text-align: left;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 235, 205, 0.25);
+  background: rgba(0,0,0,0.25);
+  color: #f6ecd8;
+  padding: 7px 9px;
+  cursor: pointer;
+  font-family: "Macondo Swash Caps", system-ui, sans-serif;
+  font-size: 14px;
+}
+
+.place-search__item:hover {
+  background: rgba(255, 235, 205, 0.10);
+}
+
+.place-search__tag {
+  float: right;
+  opacity: 0.75;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+/* ---------------- HEX OPACITY (inside layers control) ---------------- */
+.hex-opacity {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.15);
+}
+
+.hex-opacity.hidden {
+  display: none;
+}
+
+.hex-opacity__title {
+  font-size: 12px;
+  opacity: 0.9;
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+
+.hex-opacity__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hex-opacity__value {
+  min-width: 34px;
+  text-align: right;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+/* Style the slider to match your dark/gold theme */
+.hex-opacity input[type="range"]{
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.18);
+  outline: none;
+}
+
+.hex-opacity input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.65);
+  border: 2px solid #ffd166;
+  box-shadow: 0 0 0 3px rgba(255,209,102,0.15), 0 6px 14px rgba(0,0,0,0.45);
+  cursor: pointer;
+}
+
+.hex-opacity input[type="range"]::-moz-range-thumb {
+  transition:
+    box-shadow 740ms ease,
+    border-color 740ms ease,
+    transform 740ms ease;
+}
+
+.hex-opacity input[type="range"]:hover::-moz-range-thumb,
+.hex-opacity input[type="range"]:focus-visible::-moz-range-thumb {
+  box-shadow:
+    0 0 0 4px rgba(255,209,102,0.22),
+    0 8px 18px rgba(0,0,0,0.55);
+  border-color: #ffe1a6;
+  transform: scale(1.0);
+}
+
+.hex-opacity input[type="range"]::-moz-range-thumb{
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.65);
+  border: 2px solid #ffd166;
+  box-shadow: 0 0 0 3px rgba(255,209,102,0.15), 0 6px 14px rgba(0,0,0,0.45);
+  cursor: pointer;
+}
+
+.hex-opacity input[type="range"]::-moz-range-track{
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.18);
+}
+
+.hex-opacity {
+  transition: opacity 540ms ease, transform 540ms ease;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.hex-opacity.hidden {
+  display: block;              /* keep layout measurable for transitions */
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  height: 0;
+  overflow: hidden;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.hex-opacity {
+  position: relative;
+}
+
+.hex-opacity::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -1px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(255,209,102,0.0),
+    rgba(255,209,102,0.6),
+    rgba(255,209,102,0.0)
+  );
+  opacity: 0;
+  transition: opacity 740ms ease;
+}
+
+.hex-opacity:not(.hidden)::before {
+  opacity: 1;
+}
+
+
+/* ---------------- ZOOM CONTROL ---------------- */
+.leaflet-control-zoom {
+  background: rgba(0,0,0,0.78);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  overflow: hidden;
+  backdrop-filter: blur(6px);
+}
+
+.leaflet-control-zoom a {
+  background: transparent;
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  line-height: 36px;
+  font-size: 20px;
+  text-align: center;
+  border: none;
+  font-family: "Macondo Swash Caps", system-ui, sans-serif;
+}
+
+.leaflet-control-zoom a:hover {
+  color: #ffd166;
+  background: rgba(255,255,255,0.12);
+}
+
+.leaflet-control-zoom a:not(:last-child) {
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+
+.leaflet-control-zoom a:active { background: rgba(255,255,255,0.20); }
+.leaflet-control-zoom a.leaflet-disabled {
+  color: rgba(255, 209, 102, 0.75);           /* gold instead of grey */
+  background: rgba(255, 209, 102, 0.10);      /* subtle gold “disabled” wash */
+  text-shadow:
+    0 0 6px rgba(255, 220, 160, 0.22),
+    0 0 12px rgba(255, 200, 120, 0.12);
+  pointer-events: none;
+}
+
+/* ---------------- SIGIL SHIMMER (used by edit button) ---------------- */
+.marker-sigil { position: relative; overflow: hidden; }
+
+.marker-sigil::after {
+  content: "";
+  position: absolute;
+  inset: -40% -40%;
+  background: linear-gradient(
+    120deg,
+    rgba(255, 215, 160, 0.0) 30%,
+    rgba(255, 215, 160, 0.55) 45%,
+    rgba(255, 215, 160, 0.85) 50%,
+    rgba(255, 215, 160, 0.55) 55%,
+    rgba(255, 215, 160, 0.0) 70%
+  );
+  transform: translateX(-120%) rotate(12deg);
+  pointer-events: none;
+}
+
+.marker-sigil.sigil-animate::after { animation: sigil-sweep 520ms ease-out forwards; }
+
+@keyframes sigil-sweep { to { transform: translateX(120%) rotate(12deg); } }
+
+.marker-sigil.sigil-animate {
+  color: #ffe1a6;
+  text-shadow:
+    0 0 6px rgba(255, 220, 160, 0.6),
+    0 0 12px rgba(255, 200, 120, 0.35);
+}
+
+/* ---------------- COMPASS CONTROL ---------------- */
+.leaflet-control.compass-control {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  padding: 0 !important;
+}
+
+.compass-wrap {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.compass-wrap img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 10px rgba(0,0,0,0.55));
+  opacity: 0.95;
+}
+
+/* ---------------- LEGEND TITLE (Layers Control Header) ---------------- */
+.leaflet-control-layers .legend-title {
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  text-transform: capitalize;
+  margin: 0 0 6px 0;
+  padding: 2px 0 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+  opacity: 0.95;
+  text-align: center;
+}
+
+/* Smooth fade for markers when ruler is active */
+.leaflet-marker-icon {
+  transition: opacity 220ms ease;
+}
+
+/* Smooth marker visual changes for ruler mode */
+.leaflet-marker-icon {
+  transition: opacity 220ms ease, filter 220ms ease;
+}
+
+/* --- Disable Leaflet's default toggle icon (stack icon) --- */
+.leaflet-control-layers .leaflet-control-layers-toggle {
+  display: none !important;
+}
+
+.leaflet-control-layers.legend-collapsed .leaflet-control-layers-toggle {
+  display: none !important;
+}
+
+</style>
+</head>
+
+<body>
+<div id="map"></div>
+
+<div id="sidePanel" class="side-panel" aria-hidden="true">
+  <div class="side-panel__header">
+    <div id="sidePanelTitle" class="side-panel__title"></div>
+    <button id="sidePanelClose" class="side-panel__close" aria-label="Close"></button>
+  </div>
+  <div id="sidePanelBody" class="side-panel__body"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+"use strict";
+
+/* --------------------------------------------------
+   MAP SETUP
+-------------------------------------------------- */
+const imageSize = 16384;
+const minZoom = 2;
+const maxZoom = 6;
+
+const map = L.map("map", {
+  crs: L.CRS.Simple,
+  minZoom,
+  maxZoom,
+  attributionControl: false
+});
+
+/* --------------------------------------------------
+   RULER STATE (declare early so marker "add" handlers can read it safely)
+-------------------------------------------------- */
+const ruler = {
+  enabled: false,
+  points: [],
+  line: null,
+  labels: [],
+  anchor: null,
+  preview: null
+};
+
+const milesPerPixel = 2/3;
+const milesPerDay = 20;
+
+/* --------------------------------------------------
+   PANES
+-------------------------------------------------- */
+map.createPane("paneBase");
+map.getPane("paneBase").style.zIndex = 200;
+
+map.createPane("overlayPane");
+map.getPane("overlayPane").style.zIndex = 450;
+
+// Party marker pane (keeps party marker above other markers)
+map.createPane("partyPane");
+map.getPane("partyPane").style.zIndex = 650;
+
+map.createPane("rulerPane");
+map.getPane("rulerPane").style.zIndex = 700;
+
+/* --------------------------------------------------
+   BASE MAPS
+-------------------------------------------------- */
+const baseTileOpts = {
+  minZoom,
+  maxZoom,
+  maxNativeZoom: maxZoom,
+  tileSize: 256,
+  noWrap: true,
+  pane: "paneBase"
+};
+
+const baseParchment = L.tileLayer("tiles/base/parchment_map/{z}/{x}/{y}.png", baseTileOpts);
+const baseSatellite = L.tileLayer("tiles/base/satellite_map/{z}/{x}/{y}.png", baseTileOpts);
+
+baseParchment.addTo(map);
+
+const bounds = L.latLngBounds(
+  map.unproject([0, imageSize], maxZoom),
+  map.unproject([imageSize, 0], maxZoom)
+);
+
+map.fitBounds(bounds);
+map.setMaxBounds(bounds);
+
+/* --------------------------------------------------
+   COMPASS ROSE (toggleable, persistent)
+-------------------------------------------------- */
+const COMPASS_STORAGE_KEY = "gaileia.ui.compass.on.v1";
+const COMPASS_IMG_URL = "ui/compass_rose.png";
+
+const compassConfig = {
+  position: "bottomright",
+  defaultOn: true,
+  baseSize: 200,
+  scaleByZoom: true,
+  zoomScaleMin: 0.90,
+  zoomScaleMax: 1.25
+};
+
+const CompassControl = L.Control.extend({
+  options: { position: compassConfig.position },
+
+  onAdd(map) {
+    this._map = map;
+
+    const container = L.DomUtil.create("div", "leaflet-control compass-control");
+    L.DomEvent.disableClickPropagation(container);
+    L.DomEvent.disableScrollPropagation(container);
+
+    const wrap = L.DomUtil.create("div", "compass-wrap", container);
+    const img = L.DomUtil.create("img", "", wrap);
+    img.src = COMPASS_IMG_URL;
+    img.alt = "Compass Rose";
+
+    this._container = container;
+    this._wrap = wrap;
+
+    this._applySize();
+    return container;
+  },
+
+  _applySize() {
+    if (!this._map || !this._wrap) return;
+
+    let scale = 1;
+    if (compassConfig.scaleByZoom) {
+      const z = this._map.getZoom();
+      const t = (z - minZoom) / (maxZoom - minZoom);
+      const clamped = Math.max(0, Math.min(1, t));
+      scale =
+        compassConfig.zoomScaleMin +
+        (compassConfig.zoomScaleMax - compassConfig.zoomScaleMin) * clamped;
+    }
+
+    const size = Math.round(compassConfig.baseSize * scale);
+    this._wrap.style.width = size + "px";
+    this._wrap.style.height = size + "px";
+  },
+
+  show() {
+    if (!this._container) return;
+    this._container.style.display = "";
+    this._visible = true;
+    try { localStorage.setItem(COMPASS_STORAGE_KEY, "1"); } catch {}
+  },
+
+  hide() {
+    if (!this._container) return;
+    this._container.style.display = "none";
+    this._visible = false;
+    try { localStorage.setItem(COMPASS_STORAGE_KEY, "0"); } catch {}
+  },
+
+  toggle() { this._visible ? this.hide() : this.show(); },
+  isVisible() { return !!this._visible; }
+});
+
+const compassControl = new CompassControl();
+map.addControl(compassControl);
+
+const savedCompass = localStorage.getItem(COMPASS_STORAGE_KEY);
+const compassOn = (savedCompass === null) ? compassConfig.defaultOn : savedCompass === "1";
+compassOn ? compassControl.show() : compassControl.hide();
+
+map.on("zoomend", () => compassControl._applySize());
+
+/* --------------------------------------------------
+   COORDINATE READOUT
+-------------------------------------------------- */
+const coord = L.control({ position: "bottomleft" });
+coord.onAdd = function () {
+  const div = L.DomUtil.create("div", "coord");
+  div.style.background = "rgba(0,0,0,0.75)";
+  div.style.color = "#fff";
+  div.style.padding = "6px 10px";
+  div.style.borderRadius = "10px";
+  div.style.font = "12px 'Macondo Swash Caps', system-ui, sans-serif";
+  div.style.boxShadow = "0 8px 20px rgba(0,0,0,0.35)";
+  div.innerHTML = "x: -<br>y: -";
+  L.DomEvent.disableClickPropagation(div);
+  L.DomEvent.disableScrollPropagation(div);
+  return div;
+};
+coord.addTo(map);
+
+/* --------------------------------------------------
+   HELPERS
+-------------------------------------------------- */
+function px(x,y){ return map.unproject([x,y],maxZoom); }
+function pxFromEvent(e){ return map.project(e.latlng,maxZoom); }
+function axialDistance(a, b) {
+  const dq = a.q - b.q;
+  const dr = a.r - b.r;
+  return (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2;
+}
+
+function addSearchToLayersControl(layersControl) {
+  const container = layersControl.getContainer();
+  if (!container) return;
+
+  const wrap = document.createElement("div");
+  wrap.className = "legend-search-wrap";
+  wrap.style.marginTop = "8px";
+  wrap.style.display = "grid";
+  wrap.style.gap = "6px";
+
+  wrap.innerHTML = `
+    <button type="button" class="legend-btn legend-search-toggle">Search</button>
+    <div class="legend-search-panel" aria-hidden="true">
+      <input class="legend-search-input" type="text" placeholder="Type a place name…" />
+      <div class="legend-search-results" hidden></div>
+    </div>
+  `;
+
+  // ✅ Always below Drag/Compass/Ruler because those were appended earlier
+  container.appendChild(wrap);
+
+  const toggleBtn = wrap.querySelector(".legend-search-toggle");
+  const panel = wrap.querySelector(".legend-search-panel");
+  const input = wrap.querySelector(".legend-search-input");
+  const results = wrap.querySelector(".legend-search-results");
+
+  // Prevent map interactions when using the input/results
+  L.DomEvent.disableClickPropagation(wrap);
+  L.DomEvent.disableScrollPropagation(wrap);
+
+  function hideResults() {
+    results.hidden = true;
+    results.innerHTML = "";
+  }
+
+  function renderMatches(matches) {
+    if (!matches.length) {
+      hideResults();
+      return;
+    }
+
+    results.hidden = false;
+    results.innerHTML = matches.map((m, i) => {
+      const tag = m.tag ? `<span class="legend-search-tag">${m.tag}</span>` : "";
+      return `<button class="legend-search-item" type="button" data-idx="${i}">${m.name}${tag}</button>`;
+    }).join("");
+
+    results.onclick = (ev) => {
+      const btn = ev.target.closest(".legend-search-item");
+      if (!btn) return;
+      const idx = Number(btn.dataset.idx);
+      const chosen = matches[idx];
+      if (!chosen) return;
+
+      goToPlace(chosen);
+
+      // Close the panel after choosing (optional — comment out if you want it to stay open)
+      panel.classList.remove("is-open");
+      panel.setAttribute("aria-hidden", "true");
+      hideResults();
+      input.value = "";
+    };
+  }
+
+  function update() {
+    const q = normalize(input.value);
+    if (!q) {
+      hideResults();
+      return;
+    }
+
+    const matches = PLACE_INDEX
+      .map(e => ({ e, s: scoreEntry(e, q) }))
+      .filter(x => x.s > 0)
+      .sort((a, b) => b.s - a.s || a.e.name.localeCompare(b.e.name))
+      .slice(0, 8)
+      .map(x => x.e);
+
+    renderMatches(matches);
+  }
+
+  // Toggle panel
+  toggleBtn.addEventListener("click", () => {
+    const isOpen = panel.classList.toggle("is-open");
+    panel.setAttribute("aria-hidden", (!isOpen).toString());
+
+    if (isOpen) {
+      // Focus input and refresh results for current text
+      setTimeout(() => input.focus(), 0);
+      update();
+    } else {
+      hideResults();
+    }
+  });
+
+  input.addEventListener("input", update);
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      input.value = "";
+      hideResults();
+      panel.classList.remove("is-open");
+      panel.setAttribute("aria-hidden", "true");
+      return;
+    }
+
+    if (e.key === "Enter") {
+      const q = normalize(input.value);
+      if (!q) return;
+
+      const best = PLACE_INDEX
+        .map(x => ({ x, s: scoreEntry(x, q) }))
+        .sort((a, b) => b.s - a.s)[0];
+
+      if (best && best.s > 0) {
+        goToPlace(best.x);
+        panel.classList.remove("is-open");
+        panel.setAttribute("aria-hidden", "true");
+        hideResults();
+        input.value = "";
+      }
+    }
+  });
+
+  // Clicking the map closes only the dropdown results (not necessarily the panel)
+  map.on("click", () => {
+    hideResults();
+  });
+}
+
+function focusLegendSearch() {
+  const lc = document.querySelector(".leaflet-control-layers");
+  if (!lc || lc.classList.contains("legend-collapsed")) return;
+
+  const toggleBtn = lc.querySelector(".legend-search-toggle");
+  const panel = lc.querySelector(".legend-search-panel");
+  const input = lc.querySelector(".legend-search-input");
+
+  if (!toggleBtn || !panel || !input) return;
+
+  // Open the panel if it isn't already
+  if (!panel.classList.contains("is-open")) {
+    toggleBtn.click();
+  }
+
+  setTimeout(() => input.focus(), 0);
+}
+
+/* --------------------------------------------------
+   PLACE SEARCH (index + helpers)
+-------------------------------------------------- */
+const PLACE_INDEX = []; // { name, n, marker, layer, tag }
+
+function normalize(str) {
+  return (str || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove accents
+    .replace(/[^a-z0-9\s'-]/g, "")
+    .trim();
+}
+
+function registerPlace({ name, marker, layer, tag }) {
+  PLACE_INDEX.push({
+    name,
+    n: normalize(name),
+    marker,
+    layer,
+    tag
+  });
+}
+
+function scoreEntry(entry, q) {
+  // startsWith > includes
+  if (entry.n.startsWith(q)) return 3;
+  if (entry.n.includes(q)) return 2;
+  return 0;
+}
+
+function goToPlace(place) {
+  // 1) ensure the correct overlay layer is ON
+  if (place.layer && !map.hasLayer(place.layer)) {
+    map.addLayer(place.layer);
+  }
+
+  // 2) pan/zoom
+  const ll = place.marker.getLatLng();
+  const targetZoom = Math.max(map.getZoom(), 3);
+  map.setView(ll, targetZoom, { animate: true });
+
+  // 3) open popup (or panel click handlers)
+  place.marker.openPopup();
+
+  // If your marker's click opens a panel (party/inn), trigger that too:
+  // (openPopup is harmless even if there is no popup)
+  try { place.marker.fire("click"); } catch {}
+}
+
+/* --------------------------------------------------
+   HEX GRID (vertical / pointy-top) SNAP
+-------------------------------------------------- */
+const SQRT3 = Math.sqrt(3);
+
+// Vertical (pointy-top) hex with horizontal width (flat-to-flat) = 30px
+const HEX_WIDTH = 30;
+const HEX_R = HEX_WIDTH / SQRT3;  // center -> vertex (pointy-top), ~17.3205
+
+// Optional: shift the grid alignment if your PNG grid isn't anchored at 0,0
+// (If your snaps feel "half a hex off", adjust these.)
+const HEX_ORIGIN_X = 0;
+const HEX_ORIGIN_Y = 0;
+
+function axialToPixel_Pointy(q, r) {
+  const x = HEX_ORIGIN_X + HEX_R * SQRT3 * (q + r / 2);
+  const y = HEX_ORIGIN_Y + HEX_R * 1.5 * r;
+  return { x, y };
+}
+
+function pixelToAxialFrac_Pointy(x, y) {
+  x -= HEX_ORIGIN_X;
+  y -= HEX_ORIGIN_Y;
+  const q = (SQRT3 / 3 * x - 1 / 3 * y) / HEX_R;
+  const r = (2 / 3 * y) / HEX_R;
+  return { q, r };
+}
+
+function cubeRoundAxial(q, r) {
+  let x = q;
+  let z = r;
+  let y = -x - z;
+
+  let rx = Math.round(x);
+  let ry = Math.round(y);
+  let rz = Math.round(z);
+
+  const xDiff = Math.abs(rx - x);
+  const yDiff = Math.abs(ry - y);
+  const zDiff = Math.abs(rz - z);
+
+  if (xDiff > yDiff && xDiff > zDiff) rx = -ry - rz;
+  else if (yDiff > zDiff)            ry = -rx - rz;
+  else                               rz = -rx - ry;
+
+  return { q: rx, r: rz };
+}
+
+function snapPxToHexCenter(p) {
+  // p is {x,y} in your maxZoom pixel space (like pxFromEvent returns)
+  const frac = pixelToAxialFrac_Pointy(p.x, p.y);
+  const hex = cubeRoundAxial(frac.q, frac.r);
+  const center = axialToPixel_Pointy(hex.q, hex.r);
+  return { x: center.x, y: center.y, q: hex.q, r: hex.r };
+}
+
+/* --------------------------------------------------
+   EDIT MODE (drag markers)
+-------------------------------------------------- */
+const markerEdit = { enabled: false, btn: null, markers: new Set() };
+
+function applyMarkerDragLock() {
+  const allowDrag = markerEdit.enabled && !isAnyPanelOpen();
+
+  markerEdit.markers.forEach(marker => {
+    if (!marker.dragging) return;
+    allowDrag ? marker.dragging.enable() : marker.dragging.disable();
+  });
+}
+
+// When the ruler is enabled, we want clicks to hit the map even if a marker is under the cursor.
+function setMarkersClickThrough(on) {
+  markerEdit.markers.forEach(m => {
+    const el = m.getElement();
+    if (!el) return;
+    el.style.pointerEvents = on ? "none" : "";
+  });
+}
+
+function setMarkersFaded(on) {
+  markerEdit.markers.forEach(m => {
+    const el = m.getElement();
+    if (!el) return;
+
+    const isParty = (m === partyMarker);
+
+    if (on) {
+      // Opacity (your existing behavior)
+      el.style.opacity = isParty ? "0.9" : "0.35";
+
+      // NEW: subtle desaturation + slight dim
+      // (values tuned to be noticeable but not ugly)
+      el.style.filter = isParty
+        ? "saturate(0.85) brightness(0.95)"
+        : "saturate(0.25) brightness(0.90)";
+    } else {
+      el.style.opacity = "";
+      el.style.filter = "";
+    }
+  });
+}
+
+function registerEditableMarker(marker, name) {
+  marker._placeName = name;
+  markerEdit.markers.add(marker);
+
+  marker.on("add", () => {
+    if (!marker.dragging) return;
+
+    // Normal edit-mode enable/disable
+    markerEdit.enabled ? marker.dragging.enable() : marker.dragging.disable();
+
+    // Respect ruler click-through
+    const el = marker.getElement();
+    if (el) el.style.pointerEvents = ruler.enabled ? "none" : "";
+  });
+
+  // --- EARLY LOCK: stop the drag BEFORE Leaflet can move the marker at all ---
+  function maybeBlockLockedDrag(e) {
+    if (!markerEdit.enabled) return;
+
+    if (isAnyPanelOpen()) {
+      shimmerEditButton();
+
+      // Prevent Leaflet from starting the drag interaction
+      if (e?.originalEvent) {
+        e.originalEvent.preventDefault?.();
+        e.originalEvent.stopPropagation?.();
+      }
+      L.DomEvent.stopPropagation(e);
+
+      // Hard-disable dragging while the panel is open
+      marker.dragging?.disable();
+      return false;
+    }
+  }
+
+  marker.on("mousedown", maybeBlockLockedDrag);
+  marker.on("touchstart", maybeBlockLockedDrag);
+
+  marker.on("dragend", () => {
+    const p = map.project(marker.getLatLng(), maxZoom);
+    console.log(`${marker._placeName} -> ${p.x.toFixed(0)}/${p.y.toFixed(0)}`);
+  });
+}
+
+function setEditMode(on) {
+  markerEdit.enabled = on;
+
+  // Auto-disable ruler when entering edit mode
+  if (on && ruler.enabled) {
+    ruler.enabled = false;
+
+    // Leaving ruler mode → restore markers
+    setMarkersClickThrough(false);
+    setMarkersFaded(false);
+
+    refreshRulerButtonLabel();
+  }
+
+applyMarkerDragLock();
+
+  // ✅ AFTER enabling everything: re-lock the marker that owns the open panel
+  if (on && panelLockedMarker?.dragging && sidePanel.classList.contains("open")) {
+    panelLockedMarker.dragging.disable();
+  }
+
+  if (markerEdit.btn) {
+    markerEdit.btn.textContent = "Drag Markers";
+    setUIButtonOn(markerEdit.btn, markerEdit.enabled);
+  }
+
+  map.getContainer().style.cursor = on ? "grab" : (ruler.enabled ? "crosshair" : "");
+}
+
+function shimmerEditButton() {
+  if (!markerEdit?.btn) return;
+  const btn = markerEdit.btn;
+  btn.classList.add("marker-sigil");
+  btn.classList.remove("sigil-animate");
+  void btn.offsetWidth;
+  btn.classList.add("sigil-animate");
+  setTimeout(() => btn.classList.remove("sigil-animate"), 600);
+}
+
+/* --------------------------------------------------
+   TILE OVERLAYS
+-------------------------------------------------- */
+const loomRoadOverlay = L.tileLayer("tiles/overlays/loom_road/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.4
+});
+
+const hexesOverlay = L.tileLayer("tiles/overlays/hexes/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.9
+});
+
+hexesOverlay.setOpacity(0.45); // starting value
+
+const cantonsOverlay = L.tileLayer("tiles/overlays/gaius_district_cantons/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.25
+});
+
+/* --------------------------------------------------
+   MARKER LAYERS
+-------------------------------------------------- */
+const capitalsLayer    = L.layerGroup();
+const settlementsLayer = L.layerGroup();
+const innspirationLayer= L.layerGroup();
+const hometownsLayer   = L.layerGroup();
+const partyLayer       = L.layerGroup();
+
+function icon(file,size){
+  return L.icon({
+    iconUrl:`icons/${file}.png`,
+    iconSize:[size,size],
+    iconAnchor:[size/2,size],
+    popupAnchor: [0, -size - 4]
+  });
+}
+
+const capitalIcon     = icon("capital_flag",32);
+const settlementIcon  = icon("settlement_flag",28);
+const innIcon         = icon("innspiration_flag",28);
+const hometownIcon    = icon("hometown_flag",28);
+
+function bindHoverPopup(marker) {
+  let t = null;
+  marker.on("mouseover", () => { t = setTimeout(() => marker.openPopup(), 80); });
+  marker.on("mouseout", () => { clearTimeout(t); marker.closePopup(); });
+}
+
+function addPlace(layer, icon, name, x, y, desc) {
+  const m = L.marker(px(x,y), { icon, draggable: true })
+    .bindPopup(`<b>${name}</b><br>${desc}`)
+    .addTo(layer);
+
+  bindHoverPopup(m);
+  registerEditableMarker(m, name);
+
+  // Close panel when clicking a normal place marker
+  m.on("click", () => closePanel());
+
+  // --- NEW: register for search ---
+  let tag = "Place";
+  if (layer === capitalsLayer) tag = "Capital";
+  else if (layer === settlementsLayer) tag = "Settlement";
+  else if (layer === hometownsLayer) tag = "Hometown";
+  else if (layer === innspirationLayer) tag = "Guild";
+
+  registerPlace({ name, marker: m, layer, tag });
+
+  return m;
+}
+
+/* --------------------------------------------------
+   SIDE PANEL
+-------------------------------------------------- */
+const sidePanel = document.getElementById("sidePanel");
+
+function isAnyPanelOpen() {
+  return sidePanel.classList.contains("open");
+}
+
+const sidePanelTitle = document.getElementById("sidePanelTitle");
+const sidePanelBody = document.getElementById("sidePanelBody");
+const sidePanelClose = document.getElementById("sidePanelClose");
+
+// Track which marker "owns" the currently open side panel (if any)
+let panelLockedMarker = null;
+
+function isPanelOpenForMarker(marker) {
+  return sidePanel.classList.contains("open") && panelLockedMarker === marker;
+}
+
+function openPanel(title, html) {
+  sidePanelTitle.textContent = title;
+  sidePanelBody.innerHTML = html;
+  sidePanel.classList.add("open");
+  sidePanel.setAttribute("aria-hidden", "false");
+  
+  applyMarkerDragLock();
+}
+
+function closePanel() {
+  panelLockedMarker = null;
+
+  sidePanel.classList.remove("open");
+  sidePanel.setAttribute("aria-hidden", "true");
+
+  applyMarkerDragLock();
+}
+
+sidePanelClose.addEventListener("click", closePanel);
+L.DomEvent.disableClickPropagation(sidePanel);
+L.DomEvent.disableScrollPropagation(sidePanel);
+sidePanelBody.addEventListener("click", (e) => {
+  const link = e.target.closest("a.guild-link");
+  if (!link) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  const guild = link.dataset.guild;
+
+  if (guild === "innspiration") {
+    const targetZoom = Math.min(maxZoom, map.getMaxZoom() ?? maxZoom);
+    map.flyTo(innMarker.getLatLng(), targetZoom, { duration: 0.8 });
+
+    // Optional: give a tiny "confirmation" without opening the guild panel
+    if (innMarker.getTooltip && innMarker.getTooltip()) {
+      innMarker.openTooltip();
+      setTimeout(() => innMarker.closeTooltip(), 900);
+    }
+  }
+});
+
+/* --------------------------------------------------
+   PARTY MARKER (persistent, toggleable)
+-------------------------------------------------- */
+const PARTY_STORAGE_KEY_POS = "gaileia.party.pos.v1";
+const PARTY_STORAGE_KEY_ON  = "gaileia.party.on.v1";
+
+const partyIcon = L.icon({
+  iconUrl: "icons/party_flag.png",
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+  tooltipAnchor: [0, -26]
+});
+
+function loadPartyPosPx() {
+  try {
+    const raw = localStorage.getItem(PARTY_STORAGE_KEY_POS);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (typeof obj?.x !== "number" || typeof obj?.y !== "number") return null;
+    return obj;
+  } catch { return null; }
+}
+
+function savePartyPosPx(pxObj) {
+  try { localStorage.setItem(PARTY_STORAGE_KEY_POS, JSON.stringify(pxObj)); } catch {}
+}
+
+function loadPartyLayerOn(defaultOn = true) {
+  const v = localStorage.getItem(PARTY_STORAGE_KEY_ON);
+  if (v === null) return defaultOn;
+  return v === "1";
+}
+
+function savePartyLayerOn(isOn) {
+  try { localStorage.setItem(PARTY_STORAGE_KEY_ON, isOn ? "1" : "0"); } catch {}
+}
+
+const partyDefaultPx = { x: 6993, y: 7246 };
+const partyStartPx = loadPartyPosPx() ?? partyDefaultPx;
+
+const partyMarker = L.marker(px(partyStartPx.x, partyStartPx.y), {
+  icon: partyIcon,
+  draggable: true,
+  pane: "partyPane"
+}).addTo(partyLayer);
+
+// Keep party marker above other markers (Marker uses zIndexOffset, not bringToFront)
+partyMarker.setZIndexOffset(10000);
+
+registerPlace({ name: "Envoys of the Fall", marker: partyMarker, layer: partyLayer, tag: "Party" });
+
+function partyPx() {
+  const p = map.project(partyMarker.getLatLng(), maxZoom);
+  return { x: Math.round(p.x), y: Math.round(p.y) };
+}
+
+function openPartyPanel() {
+  panelLockedMarker = partyMarker;
+
+  // If Drag Markers is enabled, lock THIS marker while its panel is open
+  if (markerEdit.enabled && partyMarker.dragging) {
+    partyMarker.dragging.disable();
+  }
+
+  const p = partyPx();
+  openPanel("Party", `
+    <div class="panel-hero">
+      <img src="lore/envoys_of_the_fall_emblem.png" alt="Envoys of the Fall emblem">
+      <div class="panel-hero-text">
+        <div class="panel-hero-title">Envoys of<br>the Fall</div>
+        <div class="muted">
+          Current position<br>
+          <span class="party-coords">x: ${p.x}, y: ${p.y}</span>
+        </div>
+      </div>
+    </div>
+
+      <div class="panel-subtitle">Party Members</div>
+      <div class="muted">
+        Oziza, Ritsa, Saraik, and WE4LAND
+      </div>
+      <div class="panel-subtitle">Current Guild</div>
+<div class="muted">
+  <a href="#" class="guild-link" data-guild="innspiration">Innspiration</a> <br>Guild Rank: 3
+</div>
+  `);
+}
+
+function innPx() {
+  const p = map.project(innMarker.getLatLng(), maxZoom);
+  return { x: Math.round(p.x), y: Math.round(p.y) };
+}
+
+function openInnPanel() {
+  panelLockedMarker = innMarker;
+
+  // If Drag Markers is enabled, lock THIS marker while its panel is open
+  if (markerEdit.enabled && innMarker.dragging) {
+    innMarker.dragging.disable();
+  }
+
+  const p = innPx();
+  openPanel("Guild", `
+    <div class="panel-hero">
+      <img src="lore/innspiration_emblem.png" alt="Innspiration emblem">
+      <div class="panel-hero-text">
+        <div class="panel-hero-title">Innspiration</div>
+        <div class="muted">
+          Lisenced Guild • M.A.G.E. Certified
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-subtitle">Description</div>
+    <div class="muted">
+      A welcoming stop on the Loom Road where wanderers find a place to stay, loners find company, the jobless find work and alcoholics find a problem.
+    </div>
+      <div class="panel-subtitle">Notes</div>
+        <ul>
+      <li>Offers the full servies of an inn</li>
+      <li>Offers entry-level contracts to general public</li>
+      <li>Provides tiered contracts and additional benefits to Guild members</li>
+    </ul>
+  `);
+}
+
+partyMarker.on("click", (e) => {
+  L.DomEvent.stopPropagation(e);
+  e.originalEvent?.preventDefault?.();
+
+  openPartyPanel(); // allow opening panel even when Drag Markers is ON
+});
+
+partyMarker.bindTooltip("Envoys of the Fall", {
+  direction: "top",
+  offset: [0, -24],
+  opacity: 0.95
+});
+
+registerEditableMarker(partyMarker, "Envoys of the Fall");
+
+partyMarker.on("dragend", () => {
+  const p = map.project(partyMarker.getLatLng(), maxZoom);
+  savePartyPosPx({ x: p.x, y: p.y });
+  if (sidePanel.classList.contains("open") && sidePanelTitle.textContent === "Envoys of the Fall") {
+    openPartyPanel();
+  }
+});
+
+map.on("overlayadd", (e) => { if (e.layer === partyLayer) savePartyLayerOn(true); });
+map.on("overlayremove", (e) => { if (e.layer === partyLayer) savePartyLayerOn(false); });
+
+if (loadPartyLayerOn(true)) partyLayer.addTo(map);
+
+/* --------------------------------------------------
+   PLACES
+-------------------------------------------------- */
+[
+  ["Morel",5594,9100],["Boin",3748,7272],["Azogek",5509,6271],
+  ["Gaius",7035,7227],["Turonia",8774,3841],["Bandobras",7502,8179],
+  ["Ferumbras",9180,10825],["Iolas",10347,6481],["Nehiya",12431,11542],
+  ["The Cauldron",13415,8429],["Oceanside",9738,2245],["Lith-Ulihm",9894,13529]
+].forEach(c => addPlace(capitalsLayer, capitalIcon, c[0], c[1], c[2], "Capital city"));
+
+[
+  ["Manikant",6993,8905],["Sava",6408,6977]
+].forEach(s => addPlace(settlementsLayer, settlementIcon, s[0], s[1], s[2], "Settlement"));
+
+[
+  ["Oceanside",        9738, 2245, "Oziza"],
+  ["Impact Site",      7593, 6964, "WE4LAND"],
+  ["Wyrdshell Enclave",6188, 7075, "Ritsa"],
+  ["Kahtay",           8495, 8436, "Saraik"]
+].forEach(h => addPlace(hometownsLayer, hometownIcon, h[0], h[1], h[2], h[3]));
+
+/* Inn marker (panel only) */
+const innMarker = L.marker(px(6993, 7246), { icon: innIcon, draggable: true }).addTo(innspirationLayer);
+registerEditableMarker(innMarker, "Innspiration");
+
+registerPlace({ name: "Innspiration", marker: innMarker, layer: innspirationLayer, tag: "Guild" });
+
+innMarker.bindTooltip("Innspiration", {
+  direction: "top",
+  offset: [0, -30],
+  opacity: 0.95
+});
+
+innMarker.on("click", (e) => {
+  L.DomEvent.stopPropagation(e);
+  e.originalEvent?.preventDefault?.();
+
+  openInnPanel(); // allow opening panel even when Drag Markers is ON
+});
+
+/* Close panel on map click (but not while measuring) */
+map.on("click", () => {
+  if (ruler.enabled) return;
+  closePanel();
+});
+
+innMarker.on("dragend", () => {
+  if (sidePanel.classList.contains("open") && panelLockedMarker === innMarker) {
+    openInnPanel();
+  }
+});
+
+/* --------------------------------------------------
+   RULER (globals + core)
+-------------------------------------------------- */
+map.doubleClickZoom.disable();
+
+function clearRuler() {
+  ruler.points = [];
+  ruler.preview = null;
+
+  if (ruler.line) { map.removeLayer(ruler.line); ruler.line = null; }
+  ruler.labels.forEach(l => map.removeLayer(l));
+  ruler.labels = [];
+  if (ruler.anchor) { map.removeLayer(ruler.anchor); ruler.anchor = null; }
+}
+
+function updateRuler() {
+  // Build the list of points to render: committed points + optional preview
+  const pts = (ruler.preview && ruler.points.length > 0)
+    ? [...ruler.points, ruler.preview]
+    : ruler.points;
+
+  if (pts.length === 0) { clearRuler(); return; }
+
+  const latlngs = pts.map(p => map.unproject([p.x, p.y], maxZoom));
+
+  if (!ruler.line) {
+    ruler.line = L.polyline(latlngs, { pane:"rulerPane", color:"#ffd166", weight:3 }).addTo(map);
+  } else {
+    ruler.line.setLatLngs(latlngs);
+  }
+
+  ruler.labels.forEach(l => map.removeLayer(l));
+  ruler.labels = [];
+
+  let totalPx = 0;
+
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i];
+    const d = Math.hypot(b.x - a.x, b.y - a.y);
+    totalPx += d;
+
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const segmentLabel = (d * milesPerPixel).toFixed(1) + " mi";
+
+    ruler.labels.push(
+      L.marker(map.unproject([mid.x, mid.y], maxZoom), {
+        pane: "rulerPane",
+        interactive: false,
+        icon: L.divIcon({ className: "ruler-label", html: segmentLabel })
+      }).addTo(map)
+    );
+  }
+
+  if (pts.length < 2) {
+    if (ruler.anchor) { map.removeLayer(ruler.anchor); ruler.anchor = null; }
+    return;
+  }
+
+  const miles = totalPx * milesPerPixel;
+  const days = (miles / milesPerDay).toFixed(2);
+  const ll = latlngs.at(-1);
+
+  if (!ruler.anchor) {
+    ruler.anchor = L.circleMarker(ll, { pane:"rulerPane", radius:1, opacity:0 })
+      .addTo(map)
+      .bindTooltip(`Total: ${miles.toFixed(1)} mi<br>Time: ${days} days`,
+        { permanent:true, className:"ruler-total-tooltip", direction:"top" }
+      );
+  } else {
+    ruler.anchor.setLatLng(ll).setTooltipContent(`Total: ${miles.toFixed(1)} mi<br>Time: ${days} days`);
+  }
+}
+
+// Add snapped point on click
+map.on("click", (e) => {
+  if (!ruler.enabled) return;
+
+  const raw = pxFromEvent(e);
+  const snapped = snapPxToHexCenter(raw);
+
+  ruler.points.push(snapped);
+  ruler.preview = null;
+  updateRuler();
+});
+
+// Live snapped preview
+map.on("mousemove", (e) => {
+  if (!ruler.enabled) return;
+  if (ruler.points.length === 0) return;
+
+  const raw = pxFromEvent(e);
+  ruler.preview = snapPxToHexCenter(raw);
+  updateRuler();
+});
+
+// Undo last point
+map.on("contextmenu", (e) => {
+  if (!ruler.enabled) return;
+  e.originalEvent?.preventDefault?.();
+
+  ruler.points.pop();
+  ruler.preview = null;
+  updateRuler();
+});
+
+/* --------------------------------------------------
+   LAYER CONTROL (and UI stack buttons)
+-------------------------------------------------- */
+const layersControl = L.control.layers(
+  { "Parchment": baseParchment, "Satellite": baseSatellite },
+  {
+    "Hex Grid": hexesOverlay,
+    "Loom Road": loomRoadOverlay,
+    "Gaius District Cantons": cantonsOverlay,
+
+    "Capitals": capitalsLayer,
+    "Settlements": settlementsLayer,
+    "Innspiration": innspirationLayer,
+    "Hometowns": hometownsLayer,
+
+    "Envoys of the Fall": partyLayer
+  },
+  { collapsed: false } // ✅ keep FALSE
+).addTo(map);
+
+// --- Legend collapse state (starts collapsed on load) ---
+const LEGEND_COLLAPSE_KEY = "gaileia.legend.collapsed.v1";
+
+function loadLegendCollapsed(defaultCollapsed = true) {
+  try {
+    const v = localStorage.getItem(LEGEND_COLLAPSE_KEY);
+    if (v === null) return defaultCollapsed;
+    return v === "1";
+  } catch {
+    return defaultCollapsed;
+  }
+}
+
+function saveLegendCollapsed(isCollapsed) {
+  try { localStorage.setItem(LEGEND_COLLAPSE_KEY, isCollapsed ? "1" : "0"); } catch {}
+}
+
+function setLegendCollapsed(collapsed) {
+  const lc = document.querySelector(".leaflet-control-layers");
+  if (!lc) return;
+
+  lc.classList.toggle("legend-collapsed", collapsed);
+
+  // --- NEW: auto-close Search panel when Legend collapses ---
+  if (collapsed) {
+    const searchPanel = lc.querySelector(".legend-search-panel");
+    const searchInput = lc.querySelector(".legend-search-input");
+    const searchResults = lc.querySelector(".legend-search-results");
+
+    if (searchPanel) {
+      searchPanel.classList.remove("is-open");
+      searchPanel.setAttribute("aria-hidden", "true");
+    }
+
+    if (searchInput) searchInput.value = "";
+    if (searchResults) {
+      searchResults.hidden = true;
+      searchResults.innerHTML = "";
+    }
+  }
+}
+
+function toggleLegendCollapsed() {
+  const container = layersControl.getContainer();
+  const isCollapsedNow = container.classList.contains("legend-collapsed");
+  setLegendCollapsed(!isCollapsedNow);
+}
+
+function wrapLegendBody() {
+  const lc = document.querySelector(".leaflet-control-layers");
+  if (!lc) return;
+
+  // If already wrapped, do nothing
+  if (lc.querySelector(":scope > .legend-body")) return;
+
+  // Find the title we injected
+  const title = lc.querySelector(":scope > .legend-title");
+  if (!title) return;
+
+  const body = document.createElement("div");
+  body.className = "legend-body";
+
+  // Move everything except the title into body
+  const nodesToMove = [];
+  for (const child of Array.from(lc.children)) {
+    if (child === title) continue;
+    nodesToMove.push(child);
+  }
+  nodesToMove.forEach(n => body.appendChild(n));
+
+  lc.appendChild(body);
+}
+
+// Add "Legend" title to the top of the layers control
+(function addLegendTitle() {
+  const container = layersControl.getContainer();
+  const title = L.DomUtil.create("div", "legend-title");
+  title.textContent = "Legend";
+  container.insertBefore(title, container.firstChild);
+
+  // Keep clicks on the title from affecting the map
+  L.DomEvent.disableClickPropagation(title);
+  L.DomEvent.disableScrollPropagation(title);
+  title.addEventListener("click", () => toggleLegendCollapsed());
+})();
+
+function setUIButtonOn(btn, on) {
+  if (!btn) return;
+  btn.classList.toggle("is-on", !!on);
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+}
+
+let rulerBtn = null;
+let compassBtn = null;
+
+function refreshCompassButtonLabel() {
+  if (!compassBtn) return;
+  compassBtn.textContent = "Compass Rose";
+  setUIButtonOn(compassBtn, compassControl.isVisible());
+}
+
+function refreshRulerButtonLabel() {
+  if (!rulerBtn) return;
+  rulerBtn.textContent = "📏 Ruler";
+  setUIButtonOn(rulerBtn, ruler.enabled);
+}
+
+function styleLayersUIButton(btn) {
+  btn.type = "button";
+
+  // ✅ Reuse the exact same styling as the Search button
+  btn.classList.add("legend-btn");
+
+  // Keep these as layout-only tweaks (not “appearance”)
+  btn.style.width = "100%";
+  btn.style.marginTop = "10px";
+
+  // Prevent map interactions when clicking buttons
+  L.DomEvent.disableClickPropagation(btn);
+  L.DomEvent.disableScrollPropagation(btn);
+}
+
+function addUIButtonsUnderLayersControl(layersControl) {
+  const container = layersControl.getContainer();
+
+  // Drag markers
+  const dragBtn = L.DomUtil.create("button", "");
+  markerEdit.btn = dragBtn;
+  styleLayersUIButton(dragBtn);
+  dragBtn.textContent = "Drag Markers";
+  setUIButtonOn(dragBtn, markerEdit.enabled);
+  dragBtn.addEventListener("click", () => setEditMode(!markerEdit.enabled));
+  container.appendChild(dragBtn);
+
+  // Compass
+  compassBtn = L.DomUtil.create("button", "");
+  styleLayersUIButton(compassBtn);
+  refreshCompassButtonLabel();
+  compassBtn.addEventListener("click", () => {
+    compassControl.toggle();
+    refreshCompassButtonLabel();
+  });
+  container.appendChild(compassBtn);
+
+  // Ruler
+  rulerBtn = L.DomUtil.create("button", "");
+  styleLayersUIButton(rulerBtn);
+  refreshRulerButtonLabel();
+ rulerBtn.addEventListener("click", () => {
+  ruler.enabled = !ruler.enabled;
+
+  // Ruler mode visuals + interaction
+  setMarkersClickThrough(ruler.enabled);
+  setMarkersFaded(ruler.enabled);
+
+  if (ruler.enabled && markerEdit.enabled) setEditMode(false);
+
+  map.getContainer().style.cursor =
+    ruler.enabled ? "crosshair" : (markerEdit.enabled ? "grab" : "");
+
+  refreshRulerButtonLabel();
+});
+  container.appendChild(rulerBtn);
+}
+
+addUIButtonsUnderLayersControl(layersControl);
+
+/* --------------------------------------------------
+   HEX OPACITY SLIDER (inside Layers control)
+-------------------------------------------------- */
+const HEX_OPACITY_STORAGE_KEY = "gaileia.hex.opacity.v1";
+const HEX_OPACITY_DEFAULT = 0.45;
+
+// initialize overlay opacity from storage (before UI)
+let hexOpacityValue = HEX_OPACITY_DEFAULT;
+try {
+  const saved = parseFloat(localStorage.getItem(HEX_OPACITY_STORAGE_KEY));
+  if (!Number.isNaN(saved)) hexOpacityValue = Math.max(0, Math.min(1, saved));
+} catch {}
+hexesOverlay.setOpacity(hexOpacityValue);
+
+let hexOpacityWrap = null;
+let hexOpacityInput = null;
+let hexOpacityValueLabel = null;
+
+function formatOpacity(v) {
+  return Math.round(v * 100) + "%";
+}
+
+function setHexOpacityUI(v) {
+  const clamped = Math.max(0, Math.min(1, v));
+  hexesOverlay.setOpacity(clamped);
+
+  if (hexOpacityInput) hexOpacityInput.value = String(clamped);
+  if (hexOpacityValueLabel) hexOpacityValueLabel.textContent = formatOpacity(clamped);
+
+  try { localStorage.setItem(HEX_OPACITY_STORAGE_KEY, String(clamped)); } catch {}
+}
+
+function updateHexOpacityVisibility() {
+  if (!hexOpacityWrap) return;
+  const on = map.hasLayer(hexesOverlay);
+  hexOpacityWrap.classList.toggle("hidden", !on);
+}
+
+function addHexOpacityToLayersControl(layersControl) {
+  const container = layersControl.getContainer();
+
+  hexOpacityWrap = L.DomUtil.create("div", "hex-opacity", container);
+  hexOpacityWrap.innerHTML = `
+    <div class="hex-opacity__title">Hex Grid Opacity</div>
+    <div class="hex-opacity__row">
+      <input id="hexOpacityInLayers" type="range" min="0" max="1" step="0.05" value="${hexOpacityValue}">
+      <div class="hex-opacity__value" id="hexOpacityValue">${formatOpacity(hexOpacityValue)}</div>
+    </div>
+  `;
+
+  hexOpacityInput = hexOpacityWrap.querySelector("#hexOpacityInLayers");
+  hexOpacityValueLabel = hexOpacityWrap.querySelector("#hexOpacityValue");
+
+  // Don’t let slider interaction pan/zoom the map
+  L.DomEvent.disableClickPropagation(hexOpacityWrap);
+  L.DomEvent.disableScrollPropagation(hexOpacityWrap);
+
+  // Live update
+  hexOpacityInput.addEventListener("input", (e) => {
+    setHexOpacityUI(parseFloat(e.target.value));
+  });
+
+  // Show/hide based on whether Hex Grid is checked
+  updateHexOpacityVisibility();
+
+  // Keep it synced when overlays are toggled
+  map.on("overlayadd overlayremove", (e) => {
+    if (e.layer === hexesOverlay) updateHexOpacityVisibility();
+  });
+}
+
+addHexOpacityToLayersControl(layersControl);
+
+addSearchToLayersControl(layersControl);
+wrapLegendBody();
+
+setLegendCollapsed(true);
+saveLegendCollapsed(true);
+
+/* --------------------------------------------------
+   KEYBOARD SHORTCUTS (E / R / C / ESC)
+-------------------------------------------------- */
+function isTypingInField(e) {
+  const el = e.target;
+  if (!el) return false;
+  const tag = el.tagName?.toLowerCase();
+  return tag === "input" || tag === "textarea" || el.isContentEditable;
+}
+
+window.addEventListener("keydown", (e) => {
+  if (isTypingInField(e)) return;
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+  const k = e.key.toLowerCase();
+
+  if (k === "e") {
+    e.preventDefault();
+    setEditMode(!markerEdit.enabled);
+    return;
+  }
+
+if (k === "r") {
+  e.preventDefault();
+  ruler.enabled = !ruler.enabled;
+
+  // Ruler mode visuals + interaction
+  setMarkersClickThrough(ruler.enabled);
+  setMarkersFaded(ruler.enabled);
+
+  if (ruler.enabled && markerEdit.enabled) setEditMode(false);
+
+  map.getContainer().style.cursor =
+    ruler.enabled ? "crosshair" : (markerEdit.enabled ? "grab" : "");
+
+  refreshRulerButtonLabel();
+  return;
+}
+
+
+  if (k === "c") {
+    e.preventDefault();
+    compassControl.toggle();
+    refreshCompassButtonLabel();
+    return;
+  }
+
+if (k === "escape") {
+  e.preventDefault();
+  clearRuler();
+  ruler.enabled = false;
+
+  // Restore normal marker behavior
+  setMarkersClickThrough(false);
+  setMarkersFaded(false);
+
+  map.getContainer().style.cursor = markerEdit.enabled ? "grab" : "";
+  refreshRulerButtonLabel();
+  return;
+}
+
+  if (k === "l") {
+    e.preventDefault();
+    toggleLegendCollapsed();
+    return;
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  if (isTypingInField(e)) return;
+
+  const key = e.key.toLowerCase();
+
+  if (key === "s") {
+    e.preventDefault();
+    focusLegendSearch();
+  }
+});
+
+/* --------------------------------------------------
+   COORD UPDATE
+-------------------------------------------------- */
+const coordEl = coord.getContainer(); // Leaflet control container (reliable)
+
+map.on("mousemove", (e) => {
+  if (!coordEl) return;
+  const p = map.project(e.latlng, maxZoom);
+  coordEl.innerHTML = `x: ${p.x.toFixed(0)}<br>y: ${p.y.toFixed(0)}`;
+});
+
+</script>
+</body>
+</html>

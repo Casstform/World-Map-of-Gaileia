@@ -1,0 +1,11 @@
+PS C:\Users\casst\Downloads> powershell -ExecutionPolicy Bypass -File .\make_leaflet_tiles.ps1 `
+>>   -InputPng "C:\Users\casst\Downloads\Parchment Map of Gaileia.png" `
+>>   -OutDir   "C:\Users\casst\OneDrive\Desktop\World Map of Gaileia In Progress\tiles_parchment"
+
+1. Shift + Right-click in the folder background
+2. Click “Open PowerShell window here”
+3. Run above script specific to respective folders, making sure script is located too.
+
+But run it as a single line
+eg.
+powershell -ExecutionPolicy Bypass -File .\make_leaflet_tiles.ps1 -InputPng "C:\Users\casst\OneDrive\Documents\Worldbuilding Gaia\Current Works\Current All Information Map of Gaileia - Parchment.png" -OutDir "C:\Users\casst\OneDrive\Desktop\World Map of Gaileia In Progress\tiles\base\parchment_map"
