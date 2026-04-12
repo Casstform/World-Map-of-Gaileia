@@ -1658,7 +1658,7 @@ if (loadPartyLayerOn(true)) partyLayer.addTo(map);
 
 [
   ["Oceanside",        9738, 2245, "Oziza"],
-  ["Impact Site",      7593, 6964, "WE4LAND"],
+  ["Impact Site",      7524, 8087, "WE4LAND"],
   ["Wyrdshell Enclave",6188, 7075, "Ritsa"],
   ["Kahtay",           8495, 8436, "Saraik"]
 ].forEach(h => addPlace(hometownsLayer, hometownIcon, h[0], h[1], h[2], h[3]));
@@ -1922,7 +1922,7 @@ function refreshCompassButtonLabel() {
 
 function refreshRulerButtonLabel() {
   if (!rulerBtn) return;
-  rulerBtn.textContent = "📏 Ruler";
+  rulerBtn.textContent = "Ruler";
   setUIButtonOn(rulerBtn, ruler.enabled);
 }
 
