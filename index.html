@@ -50,21 +50,39 @@ html, body, #map {
 
 /* ---------------- RULER UI ---------------- */
 .ruler-label {
-  background: rgba(0,0,0,.7);
-  color:#fff;
-  padding:2px 6px;
-  border-radius:8px;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #fff;
+  padding: 0;
   font-size: 12px;
-  white-space:nowrap;
-  pointer-events:none;
+  white-space: nowrap;
+  pointer-events: none;
+  text-shadow:
+    0 1px 2px rgba(0,0,0,0.95),
+    0 -1px 2px rgba(0,0,0,0.95),
+    1px 0 2px rgba(0,0,0,0.95),
+    -1px 0 2px rgba(0,0,0,0.95),
+    0 0 5px rgba(0,0,0,0.95);
 }
 
 .ruler-total-tooltip {
-  background: rgba(0,0,0,.8) !important;
-  color:#fff !important;
-  border-radius:10px;
-  padding:4px 8px;
+  background: rgba(0,0,0,.6) !important;
+  color: #fff !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 10px;
+  padding: 4px 8px;
   font-size: 12px;
+}
+
+.leaflet-tooltip.ruler-total-tooltip {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.leaflet-tooltip.ruler-total-tooltip::before {
+  display: none !important;
 }
 
 /* ---------------- SIDE PANEL ---------------- */
@@ -374,8 +392,8 @@ html, body, #map {
   max-height: 0;
   opacity: 0;
   transform: translateY(-4px);
-  transition: max-height 540ms ease, opacity 540ms ease, transform 540ms ease;
-  margin-top: 6px;
+  transition: max-height 540ms ease, opacity 540ms ease, transform 540ms ease, margin-top 540ms ease;
+  margin-top: 0;
 }
 
 .legend-search-toggle {
@@ -386,6 +404,59 @@ html, body, #map {
   max-height: 260px; /* big enough to show input + a few results */
   opacity: 1;
   transform: translateY(0);
+  margin-top: 6px;
+}
+
+.legend-trip-panel {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: max-height 540ms ease, opacity 540ms ease, transform 540ms ease, margin-top 540ms ease;
+  margin-top: 0;
+}
+
+.legend-trip-panel.is-open {
+  max-height: 260px;
+  opacity: 1;
+  transform: translateY(0);
+  margin-top: 6px;
+}
+
+.legend-trip-text {
+  color: #f6ecd8;
+  font-size: 14px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.legend-trip-field {
+  margin: 7px 0 0 0;
+}
+
+.legend-trip-speed {
+  width: 100%;
+}
+
+.legend-gold-separator {
+  position: relative;
+  height: 1px;
+  margin: 10px 0 2px 0;
+}
+
+.legend-gold-separator::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(255,209,102,0.0),
+    rgba(255,209,102,0.6),
+    rgba(255,209,102,0.0)
+  );
 }
 
 .legend-search-input {
@@ -815,12 +886,73 @@ const ruler = {
   points: [],
   line: null,
   labels: [],
+  pointMarkers: [],
   anchor: null,
   preview: null
 };
 
 const milesPerPixel = 2/3;
 const milesPerDay = 20;
+
+const tripDetails = {
+  btn: null,
+  panel: null,
+  distanceEl: null,
+  speedInput: null,
+  timeEl: null
+};
+
+function getRulerRenderPoints() {
+  return (ruler.preview && ruler.points.length > 0)
+    ? [...ruler.points, ruler.preview]
+    : ruler.points;
+}
+
+function getRulerTotalMiles() {
+  const pts = getRulerRenderPoints();
+  if (pts.length < 2) return null;
+
+  let totalPx = 0;
+
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1];
+    const b = pts[i];
+    totalPx += Math.hypot(b.x - a.x, b.y - a.y);
+  }
+
+  return totalPx * milesPerPixel;
+}
+
+function formatTripDays(days) {
+  if (!Number.isFinite(days)) return "?";
+  if (days < 10) return days.toFixed(2);
+  if (days < 100) return days.toFixed(1);
+  return Math.round(days).toString();
+}
+
+function updateTripDetails() {
+  const miles = getRulerTotalMiles();
+  const speed = tripDetails.speedInput
+    ? Number.parseInt(tripDetails.speedInput.value, 10)
+    : 20;
+
+  if (tripDetails.distanceEl) {
+    tripDetails.distanceEl.textContent =
+      miles === null ? "Trip Distance: ? mi" : `Trip Distance: ${miles.toFixed(1)} mi`;
+  }
+
+  if (tripDetails.timeEl) {
+    const hasDistance = miles !== null;
+    const hasSpeed = Number.isFinite(speed) && speed > 0;
+
+    const days = hasDistance && hasSpeed
+      ? miles / speed
+      : null;
+
+    tripDetails.timeEl.textContent =
+      days === null ? "Travel Time: ? Days" : `Travel Time: ${formatTripDays(days)} Days`;
+  }
+}
 
 /* --------------------------------------------------
    PANES
@@ -837,6 +969,9 @@ map.getPane("partyPane").style.zIndex = 650;
 
 map.createPane("rulerPane");
 map.getPane("rulerPane").style.zIndex = 700;
+
+map.createPane("rulerTooltipPane");
+map.getPane("rulerTooltipPane").style.zIndex = 950;
 
 /* --------------------------------------------------
    BASE MAPS
@@ -981,12 +1116,12 @@ function addSearchToLayersControl(layersControl) {
 
   const wrap = document.createElement("div");
   wrap.className = "legend-search-wrap";
-  wrap.style.marginTop = "8px";
+  wrap.style.marginTop = "0";
   wrap.style.display = "grid";
-  wrap.style.gap = "6px";
+  wrap.style.gap = "0";
 
   wrap.innerHTML = `
-    <button type="button" class="legend-btn legend-search-toggle">Search</button>
+    <button type="button" class="legend-btn legend-search-toggle" style="margin-top: 10px;">Search</button>
     <div class="legend-search-panel" aria-hidden="true">
       <input class="legend-search-input" type="text" placeholder="Type a place name…" />
       <div class="legend-search-results" hidden></div>
@@ -1103,6 +1238,68 @@ function addSearchToLayersControl(layersControl) {
   map.on("click", () => {
     hideResults();
   });
+}
+
+function addTripDetailsToLayersControl(layersControl) {
+  const container = layersControl.getContainer();
+  if (!container) return;
+
+  const wrap = document.createElement("div");
+  wrap.className = "legend-trip-wrap";
+  wrap.style.marginTop = "0";
+  wrap.style.display = "grid";
+  wrap.style.gap = "0";
+
+  wrap.innerHTML = `
+    <button type="button" class="legend-btn legend-trip-toggle" style="margin-top: 10px;">Trip Details</button>
+    <div class="legend-trip-panel" aria-hidden="true">
+      <div class="legend-trip-text" id="tripDistanceText">Trip Distance: ? mi</div>
+      <div class="legend-trip-text" id="tripTimeText">Travel Time: ? Days</div>
+
+      <div class="legend-trip-field">
+        <input
+          class="legend-search-input legend-trip-speed"
+          type="text"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          value="20"
+          placeholder="Travel speed in feet."
+        />
+      </div>
+    </div>
+  `;
+
+  container.appendChild(wrap);
+
+  tripDetails.btn = wrap.querySelector(".legend-trip-toggle");
+  tripDetails.panel = wrap.querySelector(".legend-trip-panel");
+  tripDetails.distanceEl = wrap.querySelector("#tripDistanceText");
+  tripDetails.speedInput = wrap.querySelector(".legend-trip-speed");
+  tripDetails.timeEl = wrap.querySelector("#tripTimeText");
+
+  L.DomEvent.disableClickPropagation(wrap);
+  L.DomEvent.disableScrollPropagation(wrap);
+
+  function cleanSpeedValue() {
+    const cleaned = tripDetails.speedInput.value.replace(/[^\d]/g, "");
+    if (tripDetails.speedInput.value !== cleaned) {
+      tripDetails.speedInput.value = cleaned;
+    }
+  }
+
+  tripDetails.btn.addEventListener("click", () => {
+    const isOpen = tripDetails.panel.classList.toggle("is-open");
+    tripDetails.panel.setAttribute("aria-hidden", (!isOpen).toString());
+    setUIButtonOn(tripDetails.btn, isOpen);
+    updateTripDetails();
+  });
+
+  tripDetails.speedInput.addEventListener("input", () => {
+    cleanSpeedValue();
+    updateTripDetails();
+  });
+
+  updateTripDetails();
 }
 
 function focusLegendSearch() {
@@ -1658,7 +1855,7 @@ if (loadPartyLayerOn(true)) partyLayer.addTo(map);
 
 [
   ["Oceanside",        9738, 2245, "Oziza"],
-  ["Impact Site",      7524, 8087, "WE4LAND"],
+  ["Impact Site",      7391, 7383, "WE4LAND"],
   ["Wyrdshell Enclave",6188, 7075, "Ritsa"],
   ["Kahtay",           8495, 8436, "Saraik"]
 ].forEach(h => addPlace(hometownsLayer, hometownIcon, h[0], h[1], h[2], h[3]));
@@ -1703,24 +1900,42 @@ function clearRuler() {
   ruler.points = [];
   ruler.preview = null;
 
-  if (ruler.line) { map.removeLayer(ruler.line); ruler.line = null; }
+  if (ruler.line) {
+    map.removeLayer(ruler.line);
+    ruler.line = null;
+  }
+
   ruler.labels.forEach(l => map.removeLayer(l));
   ruler.labels = [];
-  if (ruler.anchor) { map.removeLayer(ruler.anchor); ruler.anchor = null; }
+
+  ruler.pointMarkers.forEach(p => map.removeLayer(p));
+  ruler.pointMarkers = [];
+
+  if (ruler.anchor) {
+    map.removeLayer(ruler.anchor);
+    ruler.anchor = null;
+  }
+
+  updateTripDetails();
 }
 
 function updateRuler() {
   // Build the list of points to render: committed points + optional preview
-  const pts = (ruler.preview && ruler.points.length > 0)
-    ? [...ruler.points, ruler.preview]
-    : ruler.points;
+  const pts = getRulerRenderPoints();
 
-  if (pts.length === 0) { clearRuler(); return; }
+  if (pts.length === 0) {
+    clearRuler();
+    return;
+  }
 
   const latlngs = pts.map(p => map.unproject([p.x, p.y], maxZoom));
 
   if (!ruler.line) {
-    ruler.line = L.polyline(latlngs, { pane:"rulerPane", color:"#ffd166", weight:3 }).addTo(map);
+    ruler.line = L.polyline(latlngs, {
+      pane: "rulerPane",
+      color: "#ffd166",
+      weight: 3
+    }).addTo(map);
   } else {
     ruler.line.setLatLngs(latlngs);
   }
@@ -1728,43 +1943,88 @@ function updateRuler() {
   ruler.labels.forEach(l => map.removeLayer(l));
   ruler.labels = [];
 
+  ruler.pointMarkers.forEach(p => map.removeLayer(p));
+  ruler.pointMarkers = [];
+
+  // Draw small circles at committed click points.
+  ruler.points.forEach(p => {
+    ruler.pointMarkers.push(
+      L.circleMarker(map.unproject([p.x, p.y], maxZoom), {
+        pane: "rulerPane",
+        radius: 5,
+        color: "#ffd166",
+        weight: 2,
+        fillColor: "#000",
+        fillOpacity: 0.65,
+        interactive: false
+      }).addTo(map)
+    );
+  });
+
   let totalPx = 0;
 
   for (let i = 1; i < pts.length; i++) {
-    const a = pts[i - 1], b = pts[i];
+    const a = pts[i - 1];
+    const b = pts[i];
+
     const d = Math.hypot(b.x - a.x, b.y - a.y);
     totalPx += d;
 
-    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const mid = {
+      x: (a.x + b.x) / 2,
+      y: (a.y + b.y) / 2
+    };
+
     const segmentLabel = (d * milesPerPixel).toFixed(1) + " mi";
 
     ruler.labels.push(
       L.marker(map.unproject([mid.x, mid.y], maxZoom), {
         pane: "rulerPane",
         interactive: false,
-        icon: L.divIcon({ className: "ruler-label", html: segmentLabel })
+        icon: L.divIcon({
+          className: "ruler-label",
+          html: segmentLabel
+        })
       }).addTo(map)
     );
   }
 
   if (pts.length < 2) {
-    if (ruler.anchor) { map.removeLayer(ruler.anchor); ruler.anchor = null; }
+    if (ruler.anchor) {
+      map.removeLayer(ruler.anchor);
+      ruler.anchor = null;
+    }
+
+    updateTripDetails();
     return;
   }
 
   const miles = totalPx * milesPerPixel;
-  const days = (miles / milesPerDay).toFixed(2);
   const ll = latlngs.at(-1);
 
   if (!ruler.anchor) {
-    ruler.anchor = L.circleMarker(ll, { pane:"rulerPane", radius:1, opacity:0 })
+    ruler.anchor = L.circleMarker(ll, {
+      pane: "rulerPane",
+      radius: 1,
+      opacity: 0
+    })
       .addTo(map)
-      .bindTooltip(`Total: ${miles.toFixed(1)} mi<br>Time: ${days} days`,
-        { permanent:true, className:"ruler-total-tooltip", direction:"top" }
-      );
-  } else {
-    ruler.anchor.setLatLng(ll).setTooltipContent(`Total: ${miles.toFixed(1)} mi<br>Time: ${days} days`);
+      .bindTooltip(
+  `Total: ${miles.toFixed(1)} mi`,
+  {
+    permanent: true,
+    className: "ruler-total-tooltip",
+    direction: "top",
+    pane: "rulerTooltipPane"
   }
+);
+  } else {
+    ruler.anchor
+      .setLatLng(ll)
+      .setTooltipContent(`Total: ${miles.toFixed(1)} mi`);
+  }
+
+  updateTripDetails();
 }
 
 // Add snapped point on click
@@ -1944,9 +2204,11 @@ function styleLayersUIButton(btn) {
 function addUIButtonsUnderLayersControl(layersControl) {
   const container = layersControl.getContainer();
 
+  // Gold separator between the checkbox list and the UI buttons.
+  const buttonSeparator = L.DomUtil.create("div", "legend-gold-separator", container);
+
   // Drag markers
-  const dragBtn = L.DomUtil.create("button", "");
-  markerEdit.btn = dragBtn;
+  const dragBtn = L.DomUtil.create("button", "");  markerEdit.btn = dragBtn;
   styleLayersUIButton(dragBtn);
   dragBtn.textContent = "Drag Markers";
   setUIButtonOn(dragBtn, markerEdit.enabled);
@@ -1982,6 +2244,9 @@ function addUIButtonsUnderLayersControl(layersControl) {
   refreshRulerButtonLabel();
 });
   container.appendChild(rulerBtn);
+
+  // Trip Details goes directly under the Ruler button.
+  addTripDetailsToLayersControl(layersControl);
 }
 
 addUIButtonsUnderLayersControl(layersControl);
@@ -2057,9 +2322,10 @@ function addHexOpacityToLayersControl(layersControl) {
   });
 }
 
+addSearchToLayersControl(layersControl);
+
 addHexOpacityToLayersControl(layersControl);
 
-addSearchToLayersControl(layersControl);
 wrapLegendBody();
 
 setLegendCollapsed(true);
@@ -2113,15 +2379,15 @@ if (k === "r") {
   }
 
 if (k === "escape") {
+  if (!ruler.enabled) return;
+
   e.preventDefault();
   clearRuler();
-  ruler.enabled = false;
 
-  // Restore normal marker behavior
-  setMarkersClickThrough(false);
-  setMarkersFaded(false);
+  // Keep the ruler tool active; ESC only clears the measured path.
+  ruler.preview = null;
 
-  map.getContainer().style.cursor = markerEdit.enabled ? "grab" : "";
+  map.getContainer().style.cursor = "crosshair";
   refreshRulerButtonLabel();
   return;
 }
