@@ -42,6 +42,19 @@ html, body, #map {
   font-family: "Macondo Swash Caps", system-ui, sans-serif !important;
 }
 
+.leaflet-control-layers label.legend-layer-locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.leaflet-control-layers label.legend-layer-locked input {
+  cursor: not-allowed;
+}
+
+.leaflet-control-layers label.legend-layer-locked:hover {
+  background: transparent;
+}
+
 .leaflet-popup-content,
 .leaflet-tooltip {
   font-size: 14px;
@@ -459,6 +472,95 @@ html, body, #map {
   );
 }
 
+/* ---------------- NESTED DISTRICT CHECKBOXES ---------------- */
+.districts-nested-control {
+  margin: 0;
+  padding: 0;
+}
+
+/* Do not restyle the parent row. Let it inherit the same rules as Leaflet's rows. */
+.districts-parent-row {
+  margin: 0;
+}
+
+/* Do not restyle child labels too heavily either. Only make them slightly smaller. */
+.districts-child-row {
+  margin: 0;
+  font-size: 12.5px !important;
+}
+
+/* Indent only the descending child list. */
+.districts-children {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    max-height 540ms ease,
+    opacity 540ms ease,
+    transform 540ms ease,
+    margin-top 540ms ease;
+  margin-top: 0;
+  padding-left: 18px;
+  pointer-events: none;
+}
+
+.districts-children.is-open {
+  max-height: 420px;
+  opacity: 1;
+  transform: translateY(0);
+  margin-top: 2px;
+  pointer-events: auto;
+}
+
+.districts-parent-text {
+  position: relative;
+  left: -3px;
+}
+
+/* ---------------- NESTED CIVILIZATION CHECKBOXES ---------------- */
+.civilization-nested-control {
+  margin: 0;
+  padding: 0;
+}
+
+.civilization-parent-row {
+  margin: 0;
+}
+
+.civilization-child-row {
+  margin: 0;
+  font-size: 12.5px !important;
+}
+
+.civilization-children {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    max-height 540ms ease,
+    opacity 540ms ease,
+    transform 540ms ease,
+    margin-top 540ms ease;
+  margin-top: 0;
+  padding-left: 18px;
+  pointer-events: none;
+}
+
+.civilization-children.is-open {
+  max-height: 180px;
+  opacity: 1;
+  transform: translateY(0);
+  margin-top: 2px;
+  pointer-events: auto;
+}
+
+.civilization-parent-text {
+  position: relative;
+  left: -3px;
+}
+
 .legend-search-input {
   width: 100%;
   box-sizing: border-box;
@@ -837,6 +939,49 @@ html, body, #map {
   transition: opacity 220ms ease, filter 220ms ease;
 }
 
+
+/* ---------------- MAP LABELS ---------------- */
+.map-label-wrapper {
+  background: transparent;
+  border: none;
+}
+
+.map-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+  text-align: center;
+  font-family: "Macondo Swash Caps", Georgia, serif;
+  font-weight: 400;
+  user-select: none;
+  pointer-events: none;
+  transform-origin: center center;
+}
+
+.map-label-natural {
+  color: #244d62;
+  font-style: normal;
+  text-shadow:
+    -1px -1px 0 rgba(245, 232, 198, 0.92),
+     1px -1px 0 rgba(245, 232, 198, 0.92),
+    -1px  1px 0 rgba(245, 232, 198, 0.92),
+     1px  1px 0 rgba(245, 232, 198, 0.92),
+     0  0 5px rgba(245, 232, 198, 0.85),
+     0  2px 4px rgba(0, 0, 0, 0.55);
+}
+
+.map-label-sea,
+.map-label-lake,
+.map-label-river {
+  color: #1f536a;
+}
+
+.map-label-small { font-size: 18px; letter-spacing: 0.04em; }
+.map-label-medium { font-size: 26px; letter-spacing: 0.06em; }
+.map-label-large { font-size: 38px; letter-spacing: 0.09em; }
+.map-label-huge { font-size: 52px; letter-spacing: 0.12em; }
+
 /* --- Disable Leaflet's default toggle icon (stack icon) --- */
 .leaflet-control-layers .leaflet-control-layers-toggle {
   display: none !important;
@@ -863,6 +1008,7 @@ html, body, #map {
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
+const PLAYER_MODE = true;
 
 /* --------------------------------------------------
    MAP SETUP
@@ -963,7 +1109,16 @@ map.getPane("paneBase").style.zIndex = 200;
 map.createPane("overlayPane");
 map.getPane("overlayPane").style.zIndex = 450;
 
-// Party marker pane (keeps party marker above other markers)
+/* Labels sit above normal overlays */
+map.createPane("labelPane");
+map.getPane("labelPane").style.zIndex = 460;
+map.getPane("labelPane").style.pointerEvents = "none";
+
+/* Hex grid sits above labels */
+map.createPane("hexPane");
+map.getPane("hexPane").style.zIndex = 470;
+
+// Party marker pane
 map.createPane("partyPane");
 map.getPane("partyPane").style.zIndex = 650;
 
@@ -1302,6 +1457,309 @@ function addTripDetailsToLayersControl(layersControl) {
   updateTripDetails();
 }
 
+function addDistrictsNestedControl(layersControl) {
+  const container = layersControl.getContainer();
+  if (!container) return;
+
+  const overlaysList = container.querySelector(".leaflet-control-layers-overlays");
+  if (!overlaysList) return;
+
+  const districtLayers = {
+    "All Districts": gaileianDistrictOverlay,
+    "Chaparral": chaparralDistrictOverlay,
+    "Desert": desertDistrictOverlay,
+    "Forest": forestDistrictOverlay,
+    "Gaius": gaiusDistrictOverlay,
+    "Grassland": grasslandDistrictOverlay,
+    "Oceanside": oceansideDistrictOverlay,
+    "Rainforest": rainforestDistrictOverlay,
+    "Savanna": savannaDistrictOverlay,
+    "Swamp": swampDistrictOverlay,
+    "Taiga": taigaDistrictOverlay,
+    "Tundra": tundraDistrictOverlay,
+    "Volcanic": volcanicDistrictOverlay
+  };
+
+  const wrap = document.createElement("div");
+  wrap.className = "districts-nested-control";
+
+  const childRows = Object.keys(districtLayers).map(name => `
+  <label class="districts-child-row">
+    <span>
+      <input class="leaflet-control-layers-selector" type="checkbox" data-district-name="${name}">
+      <span>${name}</span>
+    </span>
+  </label>
+`).join("");
+
+wrap.innerHTML = `
+  <label class="districts-parent-row">
+    <span>
+      <input type="checkbox" class="leaflet-control-layers-selector districts-parent-checkbox">
+      <span class="districts-parent-text">Districts of Gaileia</span>
+    </span>
+  </label>
+
+  <div class="districts-children" aria-hidden="true">
+    ${childRows}
+  </div>
+`;
+
+  const parentCheckbox = wrap.querySelector(".districts-parent-checkbox");
+  const childrenWrap = wrap.querySelector(".districts-children");
+  const childCheckboxes = Array.from(wrap.querySelectorAll(".districts-child-row input"));
+
+  function openChildren() {
+    childrenWrap.classList.add("is-open");
+    childrenWrap.setAttribute("aria-hidden", "false");
+  }
+
+  function closeChildren() {
+    childrenWrap.classList.remove("is-open");
+    childrenWrap.setAttribute("aria-hidden", "true");
+  }
+
+  function removeAllDistrictLayers() {
+    Object.values(districtLayers).forEach(layer => {
+      if (map.hasLayer(layer)) {
+        map.removeLayer(layer);
+      }
+    });
+
+    childCheckboxes.forEach(cb => {
+      cb.checked = false;
+    });
+  }
+
+  parentCheckbox.addEventListener("change", () => {
+    if (parentCheckbox.checked) {
+      openChildren();
+    } else {
+      closeChildren();
+      removeAllDistrictLayers();
+    }
+  });
+
+  childCheckboxes.forEach(cb => {
+    cb.addEventListener("change", () => {
+      const layerName = cb.dataset.districtName;
+      const layer = districtLayers[layerName];
+      if (!layer) return;
+
+      if (cb.checked) {
+        map.addLayer(layer);
+      } else {
+        map.removeLayer(layer);
+      }
+
+      const anyChildChecked = childCheckboxes.some(child => child.checked);
+      if (anyChildChecked && !parentCheckbox.checked) {
+        parentCheckbox.checked = true;
+        openChildren();
+      }
+    });
+  });
+
+  // Keep the checkboxes accurate if district layers are removed elsewhere in code.
+  map.on("layerremove", (e) => {
+    const matchingEntry = Object.entries(districtLayers)
+      .find(([, layer]) => layer === e.layer);
+
+    if (!matchingEntry) return;
+
+    const [name] = matchingEntry;
+    const cb = childCheckboxes.find(child => child.dataset.districtName === name);
+    if (cb) cb.checked = false;
+  });
+
+  map.on("layeradd", (e) => {
+    const matchingEntry = Object.entries(districtLayers)
+      .find(([, layer]) => layer === e.layer);
+
+    if (!matchingEntry) return;
+
+    const [name] = matchingEntry;
+    const cb = childCheckboxes.find(child => child.dataset.districtName === name);
+    if (cb) cb.checked = true;
+
+    parentCheckbox.checked = true;
+    openChildren();
+  });
+
+  // Insert this custom group directly after "Gaius District Cantons".
+  const labels = Array.from(overlaysList.querySelectorAll("label"));
+  const cantonsLabel = labels.find(label =>
+    label.textContent.trim() === "Gaius District Cantons"
+  );
+
+  if (cantonsLabel) {
+    cantonsLabel.insertAdjacentElement("afterend", wrap);
+  } else {
+    overlaysList.insertBefore(wrap, overlaysList.firstChild);
+  }
+
+  L.DomEvent.disableClickPropagation(wrap);
+  L.DomEvent.disableScrollPropagation(wrap);
+}
+
+function addCivilizationNestedControl(layersControl) {
+  const container = layersControl.getContainer();
+  if (!container) return;
+
+  const overlaysList = container.querySelector(".leaflet-control-layers-overlays");
+  if (!overlaysList) return;
+
+  const civilizationLayers = {
+    "Capitals": capitalsLayer,
+    "Settlements": settlementsLayer
+  };
+
+  const wrap = document.createElement("div");
+  wrap.className = "civilization-nested-control";
+
+  const childRows = Object.keys(civilizationLayers).map(name => `
+    <label class="civilization-child-row">
+      <span>
+        <input class="leaflet-control-layers-selector" type="checkbox" data-civilization-name="${name}">
+        <span>${name}</span>
+      </span>
+    </label>
+  `).join("");
+
+  wrap.innerHTML = `
+    <label class="civilization-parent-row">
+      <span>
+        <input type="checkbox" class="leaflet-control-layers-selector civilization-parent-checkbox">
+        <span class="civilization-parent-text">Civilization</span>
+      </span>
+    </label>
+
+    <div class="civilization-children" aria-hidden="true">
+      ${childRows}
+    </div>
+  `;
+
+  const parentCheckbox = wrap.querySelector(".civilization-parent-checkbox");
+  const childrenWrap = wrap.querySelector(".civilization-children");
+  const childCheckboxes = Array.from(wrap.querySelectorAll(".civilization-child-row input"));
+
+  function openChildren() {
+    childrenWrap.classList.add("is-open");
+    childrenWrap.setAttribute("aria-hidden", "false");
+  }
+
+  function closeChildren() {
+    childrenWrap.classList.remove("is-open");
+    childrenWrap.setAttribute("aria-hidden", "true");
+  }
+
+  function removeAllCivilizationLayers() {
+    Object.values(civilizationLayers).forEach(layer => {
+      if (map.hasLayer(layer)) {
+        map.removeLayer(layer);
+      }
+    });
+
+    childCheckboxes.forEach(cb => {
+      cb.checked = false;
+    });
+  }
+
+  parentCheckbox.addEventListener("change", () => {
+    if (parentCheckbox.checked) {
+      openChildren();
+    } else {
+      closeChildren();
+      removeAllCivilizationLayers();
+    }
+  });
+
+  childCheckboxes.forEach(cb => {
+    cb.addEventListener("change", () => {
+      const layerName = cb.dataset.civilizationName;
+      const layer = civilizationLayers[layerName];
+      if (!layer) return;
+
+      if (cb.checked) {
+        map.addLayer(layer);
+      } else {
+        map.removeLayer(layer);
+      }
+
+      const anyChildChecked = childCheckboxes.some(child => child.checked);
+      if (anyChildChecked && !parentCheckbox.checked) {
+        parentCheckbox.checked = true;
+        openChildren();
+      }
+    });
+  });
+
+  map.on("layerremove", (e) => {
+    const matchingEntry = Object.entries(civilizationLayers)
+      .find(([, layer]) => layer === e.layer);
+
+    if (!matchingEntry) return;
+
+    const [name] = matchingEntry;
+    const cb = childCheckboxes.find(child => child.dataset.civilizationName === name);
+    if (cb) cb.checked = false;
+  });
+
+  map.on("layeradd", (e) => {
+    const matchingEntry = Object.entries(civilizationLayers)
+      .find(([, layer]) => layer === e.layer);
+
+    if (!matchingEntry) return;
+
+    const [name] = matchingEntry;
+    const cb = childCheckboxes.find(child => child.dataset.civilizationName === name);
+    if (cb) cb.checked = true;
+
+    parentCheckbox.checked = true;
+    openChildren();
+  });
+
+  const labels = Array.from(overlaysList.querySelectorAll("label"));
+  const cantonsLabel = labels.find(label =>
+    label.textContent.trim() === "Gaius District Cantons"
+  );
+
+  if (cantonsLabel) {
+    cantonsLabel.insertAdjacentElement("afterend", wrap);
+  } else {
+    overlaysList.appendChild(wrap);
+  }
+
+  L.DomEvent.disableClickPropagation(wrap);
+  L.DomEvent.disableScrollPropagation(wrap);
+}
+
+function lockNestedLayerControlItem(layersControl, childDisplayName, reason = "Not yet discovered") {
+  const container = layersControl.getContainer();
+  if (!container) return;
+
+  const labels = Array.from(container.querySelectorAll(".leaflet-control-layers-overlays label"));
+
+  const targetLabel = labels.find(label =>
+    label.textContent.trim() === childDisplayName
+  );
+
+  if (!targetLabel) return;
+
+  const input = targetLabel.querySelector("input");
+  if (!input) return;
+
+  input.disabled = true;
+  input.checked = false;
+
+  targetLabel.classList.add("legend-layer-locked");
+  targetLabel.title = reason;
+
+  if (childDisplayName === "Settlements" && map.hasLayer(settlementsLayer)) {
+    map.removeLayer(settlementsLayer);
+  }
+}
+
 function focusLegendSearch() {
   const lc = document.querySelector(".leaflet-control-layers");
   if (!lc || lc.classList.contains("legend-collapsed")) return;
@@ -1562,7 +2020,7 @@ const loomRoadOverlay = L.tileLayer("tiles/overlays/loom_road/{z}/{x}/{y}.png", 
 });
 
 const hexesOverlay = L.tileLayer("tiles/overlays/hexes/{z}/{x}/{y}.png", {
-  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.9
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"hexPane", opacity:.9
 });
 
 hexesOverlay.setOpacity(0.45); // starting value
@@ -1570,6 +2028,135 @@ hexesOverlay.setOpacity(0.45); // starting value
 const cantonsOverlay = L.tileLayer("tiles/overlays/gaius_district_cantons/{z}/{x}/{y}.png", {
   minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.25
 });
+
+const gaileianDistrictOverlay = L.tileLayer("tiles/overlays/gaileian_district_overlay/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.5
+});
+
+const chaparralDistrictOverlay = L.tileLayer("tiles/overlays/chaparral_district/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.5
+});
+
+const desertDistrictOverlay = L.tileLayer("tiles/overlays/desert_district/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.5
+});
+
+const forestDistrictOverlay = L.tileLayer("tiles/overlays/forest_district/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.5
+});
+
+const gaiusDistrictOverlay = L.tileLayer("tiles/overlays/gaius_district/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.5
+});
+
+const grasslandDistrictOverlay = L.tileLayer("tiles/overlays/grassland_district/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.5
+});
+
+const oceansideDistrictOverlay = L.tileLayer("tiles/overlays/oceanside_district/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.5
+});
+
+const rainforestDistrictOverlay = L.tileLayer("tiles/overlays/rainforest_district/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.5
+});
+
+const savannaDistrictOverlay = L.tileLayer("tiles/overlays/savanna_district/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.5
+});
+
+const swampDistrictOverlay = L.tileLayer("tiles/overlays/swamp_district/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.5
+});
+
+const taigaDistrictOverlay = L.tileLayer("tiles/overlays/taiga_district/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.5
+});
+
+const tundraDistrictOverlay = L.tileLayer("tiles/overlays/tundra_district/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.5
+});
+
+const volcanicDistrictOverlay = L.tileLayer("tiles/overlays/volcanic_district/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.5
+});
+
+/* --------------------------------------------------
+   MAP LABELS
+-------------------------------------------------- */
+const mapLabelsLayer = L.layerGroup();
+
+const MAP_LABELS = [
+  {
+    id: "pilgrims-sea",
+    name: "Pilgrim's Sea",
+    type: "sea",
+    group: "natural",
+    x: 7456,
+    y: 7150,
+    angle: -6,
+    size: "large",
+    minZoom: 5,
+    maxZoom: 6,
+    status: "active"
+  }
+];
+
+function escapeLabelHtml(text) {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function shouldShowMapLabel(label) {
+  const z = map.getZoom();
+
+  if (label.status === "hidden") return false;
+  if (label.minZoom !== undefined && z < label.minZoom) return false;
+  if (label.maxZoom !== undefined && z > label.maxZoom) return false;
+
+  return true;
+}
+
+function makeMapLabelIcon(label) {
+  const angle = Number(label.angle || 0);
+  const size = label.size || "medium";
+  const group = label.group || "natural";
+  const type = label.type || "place";
+
+  return L.divIcon({
+    className: "map-label-wrapper",
+    html: `
+      <div
+        class="map-label map-label-${group} map-label-${type} map-label-${size}"
+        style="transform: translate(-50%, -50%) rotate(${angle}deg);"
+      >${escapeLabelHtml(label.name)}</div>
+    `,
+    iconSize: [0, 0],
+    iconAnchor: [0, 0]
+  });
+}
+
+function renderMapLabels() {
+  mapLabelsLayer.clearLayers();
+
+  MAP_LABELS.forEach(label => {
+    if (!shouldShowMapLabel(label)) return;
+
+    L.marker(px(label.x, label.y), {
+      icon: makeMapLabelIcon(label),
+      pane: "labelPane",
+      interactive: false
+    }).addTo(mapLabelsLayer);
+  });
+}
+
+renderMapLabels();
+map.on("zoomend", renderMapLabels);
+//mapLabelsLayer.addTo(map);
 
 /* --------------------------------------------------
    MARKER LAYERS
@@ -1600,7 +2187,7 @@ function bindHoverPopup(marker) {
   marker.on("mouseout", () => { clearTimeout(t); marker.closePopup(); });
 }
 
-function addPlace(layer, icon, name, x, y, desc) {
+function addPlace(layer, icon, name, x, y, desc, options = {}) {
   const m = L.marker(px(x,y), { icon, draggable: true })
     .bindPopup(`<b>${name}</b><br>${desc}`)
     .addTo(layer);
@@ -1611,14 +2198,18 @@ function addPlace(layer, icon, name, x, y, desc) {
   // Close panel when clicking a normal place marker
   m.on("click", () => closePanel());
 
-  // --- NEW: register for search ---
-  let tag = "Place";
-  if (layer === capitalsLayer) tag = "Capital";
-  else if (layer === settlementsLayer) tag = "Settlement";
-  else if (layer === hometownsLayer) tag = "Hometown";
-  else if (layer === innspirationLayer) tag = "Guild";
+  // Register for search unless this place is intentionally hidden from search.
+  const searchable = options.searchable !== false;
 
-  registerPlace({ name, marker: m, layer, tag });
+  if (searchable) {
+    let tag = "Place";
+    if (layer === capitalsLayer) tag = "Capital";
+    else if (layer === settlementsLayer) tag = "Settlement";
+    else if (layer === hometownsLayer) tag = "Hometown";
+    else if (layer === innspirationLayer) tag = "Guild";
+
+    registerPlace({ name, marker: m, layer, tag });
+  }
 
   return m;
 }
@@ -1850,8 +2441,17 @@ if (loadPartyLayerOn(true)) partyLayer.addTo(map);
 ].forEach(c => addPlace(capitalsLayer, capitalIcon, c[0], c[1], c[2], "Capital city"));
 
 [
-  ["Manikant",6993,8905],["Sava",6408,6977]
-].forEach(s => addPlace(settlementsLayer, settlementIcon, s[0], s[1], s[2], "Settlement"));
+  ["Manikant",6993,8905],
+  ["Sava",6408,6977]
+].forEach(s => addPlace(
+  settlementsLayer,
+  settlementIcon,
+  s[0],
+  s[1],
+  s[2],
+  "Settlement",
+  { searchable: !PLAYER_MODE }
+));
 
 [
   ["Oceanside",        9738, 2245, "Oziza"],
@@ -2066,17 +2666,16 @@ const layersControl = L.control.layers(
   { "Parchment": baseParchment, "Satellite": baseSatellite },
   {
     "Hex Grid": hexesOverlay,
+    "Natural Features": mapLabelsLayer,
     "Loom Road": loomRoadOverlay,
     "Gaius District Cantons": cantonsOverlay,
 
-    "Capitals": capitalsLayer,
-    "Settlements": settlementsLayer,
     "Innspiration": innspirationLayer,
     "Hometowns": hometownsLayer,
 
     "Envoys of the Fall": partyLayer
   },
-  { collapsed: false } // ✅ keep FALSE
+  { collapsed: false }
 ).addTo(map);
 
 // --- Legend collapse state (starts collapsed on load) ---
@@ -2247,6 +2846,13 @@ function addUIButtonsUnderLayersControl(layersControl) {
 
   // Trip Details goes directly under the Ruler button.
   addTripDetailsToLayersControl(layersControl);
+}
+
+addDistrictsNestedControl(layersControl);
+addCivilizationNestedControl(layersControl);
+
+if (PLAYER_MODE) {
+  lockNestedLayerControlItem(layersControl, "Settlements", "Not yet discovered");
 }
 
 addUIButtonsUnderLayersControl(layersControl);
