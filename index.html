@@ -2085,17 +2085,18 @@ function goToPlace(place) {
 
   // 2) pan/zoom
   const ll = place.marker.getLatLng();
-  const targetZoom = place.tag === "Canton" ? maxZoom : Math.max(map.getZoom(), 3);
+  const isDistrictLabel = place.tag === "Canton" || place.tag === "Province";
+  const targetZoom = isDistrictLabel ? maxZoom : Math.max(map.getZoom(), 3);
   map.setView(ll, targetZoom, { animate: true });
 
   // 3) open popup or panel click handlers
-place.marker.openPopup();
+  place.marker.openPopup();
 
-// Do not auto-open Canton panels from Search.
-// Clicking the Canton marker directly can still open its panel.
-if (place.tag !== "Canton") {
-  try { place.marker.fire("click"); } catch {}
-}
+  // Do not auto-open district label panels from Search.
+  // Clicking the Canton/Province marker directly can still open its panel.
+  if (!isDistrictLabel) {
+    try { place.marker.fire("click"); } catch {}
+  }
 }
 
 /* --------------------------------------------------
@@ -2719,20 +2720,184 @@ function cantonMarkerIcon({ emblemUrl, label }) {
   });
 }
 
-const milnePhiMarker = L.marker(px(6932, 6983), {
-  icon: cantonMarkerIcon({
+const CANTON_MARKERS = [
+  {
+    name: "Arda End",
+    x: 5915,
+    y: 6891,
+    emblemUrl: "icons/arda_end_canton_emblem.png",
+    infographicUrl: "lore/cantons/arda_end_infographic.png",
+    tag: "Canton",
+    panelHeader: "Canton of Gaius District",
+    infographicTitle: "Canton Infographic"
+  },
+  {
+    name: "It Fir",
+    x: 6646,
+    y: 6931,
+    emblemUrl: "icons/it_fir_canton_emblem.png",
+    infographicUrl: "lore/cantons/it_fir_infographic.png",
+    tag: "Canton",
+    panelHeader: "Canton of Gaius District",
+    infographicTitle: "Canton Infographic"
+  },
+  {
+    name: "Den Iru",
+    x: 6436,
+    y: 7434,
+    emblemUrl: "icons/den_iru_canton_emblem.png",
+    infographicUrl: "lore/cantons/den_iru_infographic.png",
+    tag: "Canton",
+    panelHeader: "Canton of Gaius District",
+    infographicTitle: "Canton Infographic"
+  },
+  {
+    name: "Da Reo",
+    x: 6427,
+    y: 8045,
+    emblemUrl: "icons/da_reo_canton_emblem.png",
+    infographicUrl: "lore/cantons/da_reo_infographic.png",
+    tag: "Canton",
+    panelHeader: "Canton of Gaius District",
+    infographicTitle: "Canton Infographic"
+  },
+  {
+    name: "Hie Porta",
+    x: 7081,
+    y: 7474,
+    emblemUrl: "icons/hie_porta_canton_emblem.png",
+    infographicUrl: "lore/cantons/hie_porta_infographic.png",
+    tag: "Canton",
+    panelHeader: "Canton of Gaius District",
+    infographicTitle: "Canton Infographic"
+  },
+  {
+    name: "Fitch Glen",
+    x: 7491,
+    y: 7351,
+    emblemUrl: "icons/fitch_glen_canton_emblem.png",
+    infographicUrl: "lore/cantons/fitch_glen_infographic.png",
+    tag: "Canton",
+    panelHeader: "Canton of Gaius District",
+    infographicTitle: "Canton Infographic"
+  },
+  {
+    name: "Ga Zin",
+    x: 5545,
+    y: 7115,
+    emblemUrl: "icons/ga_zin_canton_emblem.png",
+    infographicUrl: "lore/cantons/ga_zin_infographic.png",
+    tag: "Canton",
+    panelHeader: "Canton of Gaius District",
+    infographicTitle: "Canton Infographic"
+  },
+  {
+    name: "La Sot",
+    x: 8121,
+    y: 7603,
+    emblemUrl: "icons/la_sot_canton_emblem.png",
+    infographicUrl: "lore/cantons/la_sot_infographic.png",
+    tag: "Canton",
+    panelHeader: "Canton of Gaius District",
+    infographicTitle: "Canton Infographic"
+  },
+  {
+    name: "Milne Phi",
+    x: 6932,
+    y: 6983,
     emblemUrl: "icons/milne_phi_canton_emblem.png",
-    label: "Milne Phi"
-  }),
-  pane: "cantonMarkerPane",
-  interactive: true
-}).addTo(cantonMarkersLayer);
+    infographicUrl: "lore/cantons/milne_phi_infographic.png",
+    tag: "Canton",
+    panelHeader: "Canton of Gaius District",
+    infographicTitle: "Canton Infographic"
+  },
+  {
+    name: "Phl Sy",
+    x: 7735,
+    y: 7240,
+    emblemUrl: "icons/phl_sy_canton_emblem.png",
+    infographicUrl: "lore/cantons/phl_sy_infographic.png",
+    tag: "Canton",
+    panelHeader: "Canton of Gaius District",
+    infographicTitle: "Canton Infographic"
+  },
+  {
+    name: "Northgrass",
+    x: 6460,
+    y: 6428,
+    emblemUrl: "icons/northgrass_canton_emblem.png",
+    infographicUrl: "lore/cantons/northgrass_infographic.png",
+    tag: "Province",
+    panelHeader: "Province of Grassland District",
+    infographicTitle: "Province Infographic"
+  }
+];
 
-registerPlace({
-  name: "Milne Phi",
-  marker: milnePhiMarker,
-  layer: cantonsOverlay,
-  tag: "Canton"
+const cantonMarkerByName = {};
+
+function escapeHtml(text) {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function openCantonPanel(canton, marker) {
+  panelLockedMarker = marker;
+
+  openPanel(canton.panelHeader, `
+    <div class="panel-hero">
+      <img src="${canton.emblemUrl}" alt="${escapeHtml(canton.name)} emblem">
+      <div class="panel-hero-text">
+        <div class="panel-hero-title">${escapeHtml(canton.name)}</div>
+      </div>
+    </div>
+
+    <div class="panel-subtitle" style="text-align: center;">${escapeHtml(canton.infographicTitle)}</div>
+    <div class="muted">
+      <img
+        src="${canton.infographicUrl}"
+        alt="${escapeHtml(canton.name)} infographic"
+        style="
+          width: 100%;
+          height: auto;
+          display: block;
+          border-radius: 14px;
+          margin-top: 8px;
+          box-shadow: 0 8px 22px rgba(0,0,0,0.45);
+        "
+      >
+    </div>
+  `);
+}
+
+CANTON_MARKERS.forEach(canton => {
+  const marker = L.marker(px(canton.x, canton.y), {
+    icon: cantonMarkerIcon({
+      emblemUrl: canton.emblemUrl,
+      label: canton.name
+    }),
+    pane: "cantonMarkerPane",
+    interactive: true
+  }).addTo(cantonMarkersLayer);
+
+  cantonMarkerByName[canton.name] = marker;
+
+  registerPlace({
+    name: canton.name,
+    marker,
+    layer: cantonsOverlay,
+    tag: canton.tag
+  });
+
+  marker.on("click", (e) => {
+    L.DomEvent.stopPropagation(e);
+    e.originalEvent?.preventDefault?.();
+
+    openCantonPanel(canton, marker);
+  });
 });
 
 function updateCantonMarkerScale() {
@@ -2747,45 +2912,6 @@ function updateCantonMarkerScale() {
 
 updateCantonMarkerScale();
 map.on("zoom zoomend", updateCantonMarkerScale);
-
-updateCantonMarkerScale();
-map.on("zoom zoomend", updateCantonMarkerScale);
-
-function openMilnePhiPanel() {
-  panelLockedMarker = milnePhiMarker;
-
-  openPanel("Canton of Gaius District", `
-    <div class="panel-hero">
-      <img src="icons/milne_phi_canton_emblem.png" alt="Milne Phi emblem">
-      <div class="panel-hero-text">
-        <div class="panel-hero-title">Milne Phi</div>
-      </div>
-    </div>
-
-    <div class="panel-subtitle" style="text-align: center;">Canton Infographic</div>
-    <div class="muted">
-      <img
-        src="lore/cantons/milne_phi_infographic.png"
-        alt="Milne Phi infographic"
-        style="
-          width: 100%;
-          height: auto;
-          display: block;
-          border-radius: 14px;
-          margin-top: 8px;
-          box-shadow: 0 8px 22px rgba(0,0,0,0.45);
-        "
-      >
-    </div>
-  `);
-}
-
-milnePhiMarker.on("click", (e) => {
-  L.DomEvent.stopPropagation(e);
-  e.originalEvent?.preventDefault?.();
-
-  openMilnePhiPanel();
-});
 
 /* --------------------------------------------------
    PLACES

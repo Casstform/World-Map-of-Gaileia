@@ -439,6 +439,43 @@ html, body, #map {
   margin-top: 6px;
 }
 
+.legend-coordinate-panel {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: max-height 540ms ease, opacity 540ms ease, transform 540ms ease, margin-top 540ms ease;
+  margin-top: 0;
+}
+
+.legend-coordinate-panel.is-open {
+  max-height: 260px;
+  opacity: 1;
+  transform: translateY(0);
+  margin-top: 6px;
+}
+
+.legend-coordinate-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.legend-coordinate-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.legend-coordinate-message {
+  margin-top: 7px;
+  color: #ffd7a0;
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.25;
+}
+
 .legend-trip-text {
   color: #f6ecd8;
   font-size: 14px;
@@ -955,7 +992,8 @@ html, body, #map {
   justify-content: center;
 
   width: 120px;
-  transform: translate(-50%, -100%);
+  transform: translate(-50%, -100%) scale(var(--canton-marker-scale, 1));
+  transform-origin: bottom center;
 
   cursor: pointer;
   user-select: none;
@@ -1103,6 +1141,17 @@ const tripDetails = {
   distanceEl: null,
   speedInput: null,
   timeEl: null
+};
+
+const coordinateFinder = {
+  btn: null,
+  panel: null,
+  xInput: null,
+  yInput: null,
+  findBtn: null,
+  clearBtn: null,
+  messageEl: null,
+  marker: null
 };
 
 function getRulerRenderPoints() {
@@ -1516,6 +1565,165 @@ function addTripDetailsToLayersControl(layersControl) {
   });
 
   updateTripDetails();
+}
+
+function addFindCoordinateToLayersControl(layersControl) {
+  const container = layersControl.getContainer();
+  if (!container) return;
+
+  const wrap = document.createElement("div");
+  wrap.className = "legend-coordinate-wrap";
+  wrap.style.marginTop = "0";
+  wrap.style.display = "grid";
+  wrap.style.gap = "0";
+
+  wrap.innerHTML = `
+    <button type="button" class="legend-btn legend-coordinate-toggle" style="margin-top: 10px;">Find Coordinate</button>
+
+    <div class="legend-coordinate-panel" aria-hidden="true">
+      <div class="legend-coordinate-fields">
+        <input
+          class="legend-search-input legend-coordinate-x"
+          type="text"
+          inputmode="numeric"
+          placeholder="X coordinate"
+        />
+
+        <input
+          class="legend-search-input legend-coordinate-y"
+          type="text"
+          inputmode="numeric"
+          placeholder="Y coordinate"
+        />
+      </div>
+
+      <div class="legend-coordinate-actions">
+        <button type="button" class="legend-btn legend-coordinate-find">Find</button>
+        <button type="button" class="legend-btn legend-coordinate-clear">Clear</button>
+      </div>
+
+      <div class="legend-coordinate-message" hidden></div>
+    </div>
+  `;
+
+  container.appendChild(wrap);
+
+  coordinateFinder.btn = wrap.querySelector(".legend-coordinate-toggle");
+  coordinateFinder.panel = wrap.querySelector(".legend-coordinate-panel");
+  coordinateFinder.xInput = wrap.querySelector(".legend-coordinate-x");
+  coordinateFinder.yInput = wrap.querySelector(".legend-coordinate-y");
+  coordinateFinder.findBtn = wrap.querySelector(".legend-coordinate-find");
+  coordinateFinder.clearBtn = wrap.querySelector(".legend-coordinate-clear");
+  coordinateFinder.messageEl = wrap.querySelector(".legend-coordinate-message");
+
+  L.DomEvent.disableClickPropagation(wrap);
+  L.DomEvent.disableScrollPropagation(wrap);
+
+  const coordinateIcon = L.icon({
+    iconUrl: "icons/dagger.png",
+    iconSize: [36, 36],
+    iconAnchor: [18, 36],
+    popupAnchor: [0, -40]
+  });
+
+  function setMessage(text) {
+    if (!coordinateFinder.messageEl) return;
+
+    if (!text) {
+      coordinateFinder.messageEl.hidden = true;
+      coordinateFinder.messageEl.textContent = "";
+      return;
+    }
+
+    coordinateFinder.messageEl.hidden = false;
+    coordinateFinder.messageEl.textContent = text;
+  }
+
+  function parseCoordinate(value) {
+    const n = Number.parseFloat(String(value).trim());
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function clearCoordinateMarker() {
+    if (coordinateFinder.marker) {
+      map.removeLayer(coordinateFinder.marker);
+      coordinateFinder.marker = null;
+    }
+
+    setMessage("");
+  }
+
+  function findCoordinate() {
+    const x = parseCoordinate(coordinateFinder.xInput.value);
+    const y = parseCoordinate(coordinateFinder.yInput.value);
+
+    if (x === null || y === null) {
+      setMessage("Enter both an X and Y coordinate.");
+      return;
+    }
+
+    if (x < 0 || x > imageSize || y < 0 || y > imageSize) {
+      setMessage(`Coordinates must be between 0 and ${imageSize}.`);
+      return;
+    }
+
+    clearCoordinateMarker();
+
+    const latlng = px(x, y);
+
+coordinateFinder.marker = L.marker(latlng, {
+  icon: coordinateIcon,
+  pane: "partyPane",
+  interactive: true
+}).addTo(map);
+
+map.setView(latlng, maxZoom, { animate: true });
+
+setMessage("");
+}
+
+  coordinateFinder.btn.addEventListener("click", () => {
+    const isOpen = coordinateFinder.panel.classList.toggle("is-open");
+    coordinateFinder.panel.setAttribute("aria-hidden", (!isOpen).toString());
+    setUIButtonOn(coordinateFinder.btn, isOpen);
+
+    if (isOpen) {
+      setTimeout(() => coordinateFinder.xInput.focus(), 0);
+    }
+  });
+
+  coordinateFinder.findBtn.addEventListener("click", findCoordinate);
+
+  coordinateFinder.clearBtn.addEventListener("click", () => {
+    clearCoordinateMarker();
+    coordinateFinder.xInput.value = "";
+    coordinateFinder.yInput.value = "";
+    coordinateFinder.xInput.focus();
+  });
+
+  coordinateFinder.xInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      coordinateFinder.yInput.focus();
+    }
+
+    if (e.key === "Escape") {
+      coordinateFinder.panel.classList.remove("is-open");
+      coordinateFinder.panel.setAttribute("aria-hidden", "true");
+      setUIButtonOn(coordinateFinder.btn, false);
+    }
+  });
+
+  coordinateFinder.yInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      findCoordinate();
+    }
+
+    if (e.key === "Escape") {
+      coordinateFinder.panel.classList.remove("is-open");
+      coordinateFinder.panel.setAttribute("aria-hidden", "true");
+      setUIButtonOn(coordinateFinder.btn, false);
+    }
+  });
 }
 
 function addDistrictsNestedControl(layersControl) {
@@ -2527,6 +2735,22 @@ registerPlace({
   tag: "Canton"
 });
 
+function updateCantonMarkerScale() {
+  const zoomDifference = maxZoom - map.getZoom();
+  const scale = Math.pow(2 / 3, zoomDifference);
+
+  document.documentElement.style.setProperty(
+    "--canton-marker-scale",
+    String(scale)
+  );
+}
+
+updateCantonMarkerScale();
+map.on("zoom zoomend", updateCantonMarkerScale);
+
+updateCantonMarkerScale();
+map.on("zoom zoomend", updateCantonMarkerScale);
+
 function openMilnePhiPanel() {
   panelLockedMarker = milnePhiMarker;
 
@@ -2847,10 +3071,10 @@ function setLegendCollapsed(collapsed) {
 
   lc.classList.toggle("legend-collapsed", collapsed);
 
-  // --- NEW: auto-close Search panel when Legend collapses ---
+  // Auto-close dropdown panels when Legend collapses.
   if (collapsed) {
     const searchPanel = lc.querySelector(".legend-search-panel");
-    const searchInput = lc.querySelector(".legend-search-input");
+    const searchInput = lc.querySelector(".legend-search-panel .legend-search-input");
     const searchResults = lc.querySelector(".legend-search-results");
 
     if (searchPanel) {
@@ -2862,6 +3086,18 @@ function setLegendCollapsed(collapsed) {
     if (searchResults) {
       searchResults.hidden = true;
       searchResults.innerHTML = "";
+    }
+
+    const coordinatePanel = lc.querySelector(".legend-coordinate-panel");
+    const coordinateBtn = lc.querySelector(".legend-coordinate-toggle");
+
+    if (coordinatePanel) {
+      coordinatePanel.classList.remove("is-open");
+      coordinatePanel.setAttribute("aria-hidden", "true");
+    }
+
+    if (coordinateBtn) {
+      setUIButtonOn(coordinateBtn, false);
     }
   }
 }
@@ -2992,6 +3228,9 @@ function addUIButtonsUnderLayersControl(layersControl) {
 
   // Trip Details goes directly under the Ruler button.
   addTripDetailsToLayersControl(layersControl);
+
+  // Find Coordinate goes directly under Trip Details.
+  addFindCoordinateToLayersControl(layersControl);
 }
 
 addDistrictsNestedControl(layersControl);
