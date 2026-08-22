@@ -1132,7 +1132,7 @@ const ruler = {
   preview: null
 };
 
-const milesPerPixel = 2/3;
+const milesPerPixel = 20 / 19.885714;
 const milesPerDay = 20;
 
 const tripDetails = {
@@ -1528,7 +1528,7 @@ function addTripDetailsToLayersControl(layersControl) {
           inputmode="numeric"
           pattern="[0-9]*"
           value="20"
-          placeholder="Travel speed in feet."
+          placeholder="Travel speed in miles per day."
         />
       </div>
     </div>
@@ -2104,8 +2104,8 @@ function goToPlace(place) {
 -------------------------------------------------- */
 const SQRT3 = Math.sqrt(3);
 
-// Vertical (pointy-top) hex with horizontal width (flat-to-flat) = 30px
-const HEX_WIDTH = 30;
+// Vertical (pointy-top) 20-mile hex; adjacent horizontal centers = 19.885714px
+const HEX_WIDTH = 19.885714;
 const HEX_R = HEX_WIDTH / SQRT3;  // center -> vertex (pointy-top), ~17.3205
 
 // Optional: shift the grid alignment if your PNG grid isn't anchored at 0,0
