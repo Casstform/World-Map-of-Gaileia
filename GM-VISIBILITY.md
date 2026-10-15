@@ -38,3 +38,19 @@ The service source has separate authentication, validation, storage-isolation an
 When the GM enables **Drag Markers**, each draggable place marker saves its map-image pixel coordinates to browser `localStorage` on drag end. Stored IDs include marker type (for example, `capital:oceanside` versus `hometown:oceanside`) so names can repeat safely. Saved positions are loaded on the next visit in the same browser and remain independent of which overlays are enabled. The Envoys of the Fall marker first checks the new per-marker position and then falls back to its former `gaileia.party.pos.v1` value so existing party moves are retained.
 
 **Scope:** marker positions are browser-local, not shared between devices, browsers, users, or private-browsing sessions. The shared visibility service only stores visibility flags; cross-device marker synchronization would require a dedicated authenticated server endpoint. Canton/province emblems are not draggable, so this change does not affect their coordinates. No location is saved from Player mode.
+
+## Cross-browser marker synchronization (requires server deployment)
+
+The frontend integration lives in `map-marker-sync.js`. It is intentionally staged separately until the externally deployed Gaileia Visibility Service is upgraded. The page continues to use browser-local positions if the shared endpoint is unavailable, and only an authenticated GM can upload changes. The visibility service's existing `/session` endpoint supplies the GM authentication; no new secrets or browser-stored password are needed.
+
+**Required service contract:**
+
+- `GET /map-markers` is readable without GM login and returns HTTP 200 JSON `{ "positions": {}, "revision": null }` for a new map.
+- The populated response must be `{ "positions": { "party:envoys-of-the-fall": { "x": 7200, "y": 7300 } }, "revision": "opaque-revision" }`.
+- `PUT /map-markers` requires `Authorization: Bearer <GM password>` and JSON `{ "key": "party:envoys-of-the-fall", "position": { "x": 7200, "y": 7300 }, "revision": null }`. It responds with the updated full GET payload.
+- Reject invalid/unauthenticated PUT requests (401/400), and stale revisions (409). Preserve writes to other marker keys and use atomic conditional storage updates, as for `/map-visibility`.
+- Store positions in separate R2 object `gaileia-map/marker-positions-v1.json` (not compendium or visibility storage). Accept keys matching `^[a-z]+:[a-z0-9]+(?:-[a-z0-9]+)*$` at most 96 chars; restrict `x` and `y` to finite numbers within 0–16384. Cap total entries (e.g. 2000) and use the existing site's CORS settings.
+- The frontend refreshes every 20 seconds while visible and on returning to the tab. Shared positions override local fallback when present. Missing shared positions retain existing local positions until the GM drags that marker. A successful authenticated drag publishes it for every browser. Read-only players can obtain positions without exposing the GM password.
+- If the endpoint fails, editing remains available and saves locally, but is **not shared**. The GM interface displays an explicit sync error rather than implying success.
+
+**Deployment order:** Upgrade and test the Gaileia Visibility Service first, then merge this frontend branch. The existing website must not be switched to shared marker synchronization until the server contract is live. Confirm both browser isolation and R2 write-conditional behavior in server tests, and verify home-to-game-computer marker persistence with a genuine second browser. The external service source and deployment permissions were not available in this GitHub session.
