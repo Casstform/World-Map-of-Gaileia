@@ -1,0 +1,26 @@
+/* Match the map's existing charcoal, parchment and gold controls. */
+.map-access { padding-bottom: 9px; margin-bottom: 6px; border-bottom: 1px solid rgba(255,209,102,.3); }
+.map-access-modes { display: flex; gap: 5px; }
+.map-access button, .map-access-dialog button { font: inherit; color: #f3ead8; background: rgba(255,255,255,.04); border: 1px solid rgba(255,209,102,.25); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+.map-access-modes button { flex: 1; }
+.map-access-modes button[aria-pressed="true"] { color: #ffd166; background: rgba(255,209,102,.13); border-color: #b49346; }
+.map-access-help, .map-access-status { font-size: 12px; line-height: 1.3; text-align: center; margin: 7px 0 0; color: #dfcda7; }
+.map-access-status:empty { display: none; }
+.map-visibility-eye { display: inline-flex; align-items: center; justify-content: center; padding: 3px; width: 28px; height: 25px; border: 0; border-radius: 6px; background: transparent; color: #ffd166; cursor: pointer; flex-shrink: 0; }
+.map-visibility-eye svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.map-visibility-eye[aria-pressed="false"] { color: #b9afa0; }
+.map-visibility-eye:hover { background: rgba(255,209,102,.15); }
+.map-visibility-eye:disabled { opacity: .45; cursor: not-allowed; }
+.leaflet-control-layers-overlays label:has(+ .map-legend-eye) { padding-right: 29px; min-height: 21px; }
+.map-legend-eye { float: right; margin-top: -26px; position: relative; }
+.side-panel__header > .map-visibility-eye { width: 32px; height: 36px; position: relative; z-index: 1; }
+.side-panel__header:has(> .map-visibility-eye) .side-panel__title { width: calc(100% - 100px); font-size: 20px; white-space: normal; }
+.map-access-dialog { box-sizing: border-box; width: min(360px, 92vw); background: #14120f; color: #f3ead8; border: 1px solid #9b7c3e; border-radius: 14px; padding: 24px; font-family: "Macondo Swash Caps", system-ui, sans-serif; box-shadow: 0 18px 60px #0009; }
+.map-access-dialog::backdrop { background: #000a; }
+.map-access-dialog h2 { margin-top: 0; color: #ffd166; }
+.map-access-dialog label { display: block; margin-bottom: 6px; }
+.map-access-dialog input { box-sizing: border-box; width: 100%; padding: 9px; background: #0006; color: #fff; border: 1px solid #9b7c3e; border-radius: 8px; font: inherit; }
+.map-access-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.map-access-error { color: #ffd7a0; min-height: 1.4em; }
+.map-access button:focus-visible, .map-visibility-eye:focus-visible, .map-access-dialog button:focus-visible { outline: 2px solid #ffd166; outline-offset: 2px; }
+.leaflet-control-layers button[hidden], .map-access [hidden] { display: none !important; }
