@@ -1087,6 +1087,7 @@ html, body, #map {
 }
 
 </style>
+<link rel="stylesheet" href="map-access.css">
 </head>
 
 <body>
@@ -1103,7 +1104,19 @@ html, body, #map {
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const PLAYER_MODE = true;
+let PLAYER_MODE = true;
+// Shared policy is loaded before player overlays are enabled. GM access is session-only.
+const mapAccess = { ready: false, settings: {}, revision: null, passcode: "", saving: false,
+  layers: new Map(), activePanel: null, refresh: () => {} };
+function playerSetting(key) {
+  if (!mapAccess.ready) return false;
+  return mapAccess.settings[key] ?? (!key.startsWith("panel:") && key !== "layer:settlements");
+}
+function canAccessLayer(layer) {
+  if (!PLAYER_MODE) return true;
+  const rule = mapAccess.layers.get(layer);
+  return !rule || (playerSetting(rule.key) && (!rule.group || playerSetting(rule.group)));
+}
 
 /* --------------------------------------------------
    MAP SETUP
@@ -2003,7 +2016,7 @@ function addCivilizationNestedControl(layersControl) {
   L.DomEvent.disableScrollPropagation(wrap);
 }
 
-function lockNestedLayerControlItem(layersControl, childDisplayName, reason = "Not yet discovered") {
+function lockNestedLayerControlItem(layersControl, childDisplayName, reason = "Not discovered...") {
   const container = layersControl.getContainer();
   if (!container) return;
 
@@ -2071,6 +2084,7 @@ function registerPlace({ name, marker, layer, tag }) {
 }
 
 function scoreEntry(entry, q) {
+  if (!canAccessLayer(entry.layer)) return 0;
   // startsWith > includes
   if (entry.n.startsWith(q)) return 3;
   if (entry.n.includes(q)) return 2;
@@ -2078,6 +2092,7 @@ function scoreEntry(entry, q) {
 }
 
 function goToPlace(place) {
+  if (!canAccessLayer(place.layer)) return;
   // 1) ensure the correct overlay layer is ON
   if (place.layer && !map.hasLayer(place.layer)) {
     map.addLayer(place.layer);
@@ -2161,7 +2176,7 @@ function snapPxToHexCenter(p) {
 const markerEdit = { enabled: false, btn: null, markers: new Set() };
 
 function applyMarkerDragLock() {
-  const allowDrag = markerEdit.enabled && !isAnyPanelOpen();
+  const allowDrag = !PLAYER_MODE && markerEdit.enabled && !isAnyPanelOpen();
 
   markerEdit.markers.forEach(marker => {
     if (!marker.dragging) return;
@@ -2246,6 +2261,7 @@ function registerEditableMarker(marker, name) {
 }
 
 function setEditMode(on) {
+  on = !!on && !PLAYER_MODE;
   markerEdit.enabled = on;
 
   // Auto-disable ruler when entering edit mode
@@ -2507,9 +2523,12 @@ function isPanelOpenForMarker(marker) {
   return sidePanel.classList.contains("open") && panelLockedMarker === marker;
 }
 
-function openPanel(title, html) {
+function openPanel(title, html, visibilityId) {
+  const owner = PLACE_INDEX.find(entry => entry.marker === panelLockedMarker);
+  if (owner && !canAccessLayer(owner.layer)) { closePanel(); return; }
+  mapAccess.activePanel = { title, html, key: "panel:" + visibilityId };
   sidePanelTitle.textContent = title;
-  sidePanelBody.innerHTML = html;
+  renderPanelVisibility();
   sidePanel.classList.add("open");
   sidePanel.setAttribute("aria-hidden", "false");
   
@@ -2518,6 +2537,7 @@ function openPanel(title, html) {
 
 function closePanel() {
   panelLockedMarker = null;
+  mapAccess.activePanel = null;
 
   sidePanel.classList.remove("open");
   sidePanel.setAttribute("aria-hidden", "true");
@@ -2634,7 +2654,7 @@ function openPartyPanel() {
 <div class="muted">
   <a href="#" class="guild-link" data-guild="innspiration">Innspiration</a> <br>Guild Rank: 3
 </div>
-  `);
+  `, "party");
 }
 
 function innPx() {
@@ -2672,7 +2692,7 @@ function openInnPanel() {
       <li>Offers entry-level contracts to general public</li>
       <li>Provides tiered contracts and additional benefits to Guild members</li>
     </ul>
-  `);
+  `, "innspiration");
 }
 
 partyMarker.on("click", (e) => {
@@ -2870,7 +2890,7 @@ function openCantonPanel(canton, marker) {
         "
       >
     </div>
-  `);
+  `, "canton-" + normalize(canton.name).replace(/[^a-z0-9]+/g, "-"));
 }
 
 CANTON_MARKERS.forEach(canton => {
@@ -2933,7 +2953,7 @@ map.on("zoom zoomend", updateCantonMarkerScale);
   s[1],
   s[2],
   "Settlement",
-  { searchable: !PLAYER_MODE }
+  { searchable: true }
 ));
 
 [
@@ -3362,9 +3382,6 @@ function addUIButtonsUnderLayersControl(layersControl) {
 addDistrictsNestedControl(layersControl);
 addCivilizationNestedControl(layersControl);
 
-if (PLAYER_MODE) {
-  lockNestedLayerControlItem(layersControl, "Settlements", "Not yet discovered");
-}
 
 addUIButtonsUnderLayersControl(layersControl);
 
@@ -3539,5 +3556,6 @@ map.on("mousemove", (e) => {
 });
 
 </script>
+<script src="map-access.js"></script>
 </body>
 </html>
