@@ -9,6 +9,9 @@ const dom = new JSDOM(html.replace(/<script[\s\S]*?<\/script>/g, ''), {
   url: 'https://casstform.github.io/World-Map-of-Gaileia/', runScripts: 'outside-only', pretendToBeVisual: true
 });
 const w = dom.window;
+// Simulate reopening with saved positions, including the preexisting party key.
+w.localStorage.setItem('gaileia.marker.position.v1:capital:morel', JSON.stringify({ x: 5650, y: 9000 }));
+w.localStorage.setItem('gaileia.party.pos.v1', JSON.stringify({ x: 7100, y: 7200 }));
 w.SVGSVGElement.prototype.createSVGRect = () => ({});
 w.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
 w.HTMLDialogElement.prototype.close = function () { this.open = false; this.dispatchEvent(new w.Event('close')); };
@@ -41,6 +44,12 @@ const label = name => [...w.document.querySelectorAll('.leaflet-control-layers-o
 (async () => {
   await tick();
   assert.equal(t.mapAccess.ready, true);
+  assert.equal(w.document.querySelector('.map-access-dialog form').textContent.includes('Use your Gaileia Compendium password.'), false);
+  const point = marker => t.map.project(marker.getLatLng(), 6);
+  const morel = t.PLACE_INDEX.find(x => x.name === 'Morel' && x.tag === 'Capital');
+  const partyEntry = t.PLACE_INDEX.find(x => x.tag === 'Party');
+  assert(Math.abs(point(morel.marker).x - 5650) < 0.01);
+  assert(Math.abs(point(partyEntry.marker).y - 7200) < 0.01);
   assert.equal(t.markerEdit.btn.hidden, true);
   assert.equal(label('Settlements').querySelector('input').disabled, true);
   assert.equal(label('Settlements').title, 'Not discovered...');
@@ -74,6 +83,25 @@ const label = name => [...w.document.querySelectorAll('.leaflet-control-layers-o
   assert.equal(t.sidePanelBody.querySelectorAll('img').length, 2);
   t.setEditMode(true);
   assert.equal(t.markerEdit.enabled, true);
+  // Drags persist independently across marker types and never collide on shared names.
+  const hometownOceanside = t.PLACE_INDEX.find(x => x.name === 'Oceanside' && x.tag === 'Hometown');
+  const capitalOceanside = t.PLACE_INDEX.find(x => x.name === 'Oceanside' && x.tag === 'Capital');
+  const innEntry = t.PLACE_INDEX.find(x => x.name === 'Innspiration');
+  const destinations = [
+    [morel.marker, 'capital:morel', 5700, 9100],
+    [partyEntry.marker, 'party:envoys-of-the-fall', 7200, 7300],
+    [innEntry.marker, 'guild:innspiration', 7050, 7250],
+    [hometownOceanside.marker, 'hometown:oceanside', 9800, 2300],
+    [capitalOceanside.marker, 'capital:oceanside', 9900, 2400],
+    [settlement.marker, 'settlement:manikant', 7000, 8950]
+  ];
+  for (const [marker, key, x, y] of destinations) {
+    marker.setLatLng(t.map.unproject([x, y], 6));
+    marker.fire('dragend');
+    const persisted = JSON.parse(w.localStorage.getItem('gaileia.marker.position.v1:' + key));
+    assert(Math.abs(persisted.x - x) < 0.01);
+    assert(Math.abs(persisted.y - y) < 0.01);
+  }
   // Leaflet updates must preserve nested groups and eye controls.
   t.map.addLayer(t.cantonsOverlay);
   t.map.removeLayer(t.cantonsOverlay);
@@ -88,6 +116,10 @@ const label = name => [...w.document.querySelectorAll('.leaflet-control-layers-o
   // Revealing panel details must not reveal any other panel.
   t.setViewerMode(true);
   assert.equal(t.markerEdit.enabled, false);
+  const beforePlayerDrag = w.localStorage.getItem('gaileia.marker.position.v1:capital:morel');
+  morel.marker.setLatLng(t.map.unproject([6000, 9200], 6));
+  morel.marker.fire('dragend');
+  assert.equal(w.localStorage.getItem('gaileia.marker.position.v1:capital:morel'), beforePlayerDrag);
   assert(t.sidePanelBody.textContent.includes('Description'));
   t.openPartyPanel();
   assert(!t.sidePanelBody.textContent.includes('Party Members'));
@@ -118,6 +150,6 @@ const label = name => [...w.document.querySelectorAll('.leaflet-control-layers-o
   assert(!t.sidePanelBody.textContent.includes('Description'));
   assert.equal(t.mapAccess.ready, false);
   assert.equal(label('Hometowns').querySelector('input').disabled, true);
-  console.log('Map DOM integration tests passed: authentication, panel isolation, legend rebuilds, search, drag locking, shared refresh and fail-closed policy.');
+  console.log('Map DOM integration tests passed: authentication, persisted marker positions, panel isolation, legend rebuilds, search, drag locking, shared refresh and fail-closed policy.');
   w.close();
 })().catch(error => { console.error(error); w.close(); process.exitCode = 1; });

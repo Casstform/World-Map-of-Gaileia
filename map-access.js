@@ -44,7 +44,6 @@ const accessDialog = document.createElement("dialog");
 accessDialog.className = "map-access-dialog";
 accessDialog.setAttribute("aria-labelledby", "map-access-title");
 accessDialog.innerHTML = `<form><h2 id="map-access-title">Unlock GM mode</h2>
-  <p>Use your Gaileia Compendium password.</p>
   <label for="map-gm-password">GM password</label>
   <input id="map-gm-password" type="password" autocomplete="current-password" required>
   <p class="map-access-error" role="alert"></p>

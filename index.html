@@ -2175,6 +2175,33 @@ function snapPxToHexCenter(p) {
 -------------------------------------------------- */
 const markerEdit = { enabled: false, btn: null, markers: new Set() };
 
+// Per-marker positions survive reopening the map in the same browser.
+// IDs include marker type so equally named locations never overwrite one another.
+const MARKER_POSITION_PREFIX = "gaileia.marker.position.v1:";
+
+function validMarkerPosition(point) {
+  return point && Number.isFinite(point.x) && Number.isFinite(point.y) &&
+    point.x >= 0 && point.x <= imageSize && point.y >= 0 && point.y <= imageSize;
+}
+
+function loadStoredMarkerPosition(id) {
+  try {
+    const raw = localStorage.getItem(MARKER_POSITION_PREFIX + id);
+    if (!raw) return null;
+    const point = JSON.parse(raw);
+    return validMarkerPosition(point) ? point : null;
+  } catch { return null; }
+}
+
+function saveStoredMarkerPosition(id, point) {
+  if (!validMarkerPosition(point)) return;
+  try {
+    localStorage.setItem(MARKER_POSITION_PREFIX + id, JSON.stringify(point));
+  } catch (error) {
+    console.warn("Could not save marker position in this browser:", id, error);
+  }
+}
+
 function applyMarkerDragLock() {
   const allowDrag = !PLAYER_MODE && markerEdit.enabled && !isAnyPanelOpen();
 
@@ -2216,8 +2243,11 @@ function setMarkersFaded(on) {
   });
 }
 
-function registerEditableMarker(marker, name) {
+function registerEditableMarker(marker, name, positionId) {
+  if (!positionId) throw new Error("Every draggable marker needs a stable position ID");
   marker._placeName = name;
+  const savedPosition = loadStoredMarkerPosition(positionId);
+  if (savedPosition) marker.setLatLng(px(savedPosition.x, savedPosition.y));
   markerEdit.markers.add(marker);
 
   marker.on("add", () => {
@@ -2257,6 +2287,9 @@ function registerEditableMarker(marker, name) {
   marker.on("dragend", () => {
     const p = map.project(marker.getLatLng(), maxZoom);
     console.log(`${marker._placeName} -> ${p.x.toFixed(0)}/${p.y.toFixed(0)}`);
+    if (!PLAYER_MODE && markerEdit.enabled) {
+      saveStoredMarkerPosition(positionId, { x: p.x, y: p.y });
+    }
   });
 }
 
@@ -2482,7 +2515,11 @@ function addPlace(layer, icon, name, x, y, desc, options = {}) {
     .addTo(layer);
 
   bindHoverPopup(m);
-  registerEditableMarker(m, name);
+  const markerType = layer === capitalsLayer ? "capital" :
+    layer === settlementsLayer ? "settlement" :
+    layer === hometownsLayer ? "hometown" :
+    layer === innspirationLayer ? "guild" : "place";
+  registerEditableMarker(m, name, markerType + ":" + normalize(name).replace(/[^a-z0-9]+/g, "-"));
 
   // Close panel when clicking a normal place marker
   m.on("click", () => closePanel());
@@ -2592,10 +2629,6 @@ function loadPartyPosPx() {
   } catch { return null; }
 }
 
-function savePartyPosPx(pxObj) {
-  try { localStorage.setItem(PARTY_STORAGE_KEY_POS, JSON.stringify(pxObj)); } catch {}
-}
-
 function loadPartyLayerOn(defaultOn = true) {
   const v = localStorage.getItem(PARTY_STORAGE_KEY_ON);
   if (v === null) return defaultOn;
@@ -2607,7 +2640,7 @@ function savePartyLayerOn(isOn) {
 }
 
 const partyDefaultPx = { x: 6993, y: 7246 };
-const partyStartPx = loadPartyPosPx() ?? partyDefaultPx;
+const partyStartPx = loadStoredMarkerPosition("party:envoys-of-the-fall") ?? loadPartyPosPx() ?? partyDefaultPx;
 
 const partyMarker = L.marker(px(partyStartPx.x, partyStartPx.y), {
   icon: partyIcon,
@@ -2708,11 +2741,9 @@ partyMarker.bindTooltip("Envoys of the Fall", {
   opacity: 0.95
 });
 
-registerEditableMarker(partyMarker, "Envoys of the Fall");
+registerEditableMarker(partyMarker, "Envoys of the Fall", "party:envoys-of-the-fall");
 
 partyMarker.on("dragend", () => {
-  const p = map.project(partyMarker.getLatLng(), maxZoom);
-  savePartyPosPx({ x: p.x, y: p.y });
   if (sidePanel.classList.contains("open") && sidePanelTitle.textContent === "Envoys of the Fall") {
     openPartyPanel();
   }
@@ -2965,7 +2996,7 @@ map.on("zoom zoomend", updateCantonMarkerScale);
 
 /* Inn marker (panel only) */
 const innMarker = L.marker(px(6993, 7246), { icon: innIcon, draggable: true }).addTo(innspirationLayer);
-registerEditableMarker(innMarker, "Innspiration");
+registerEditableMarker(innMarker, "Innspiration", "guild:innspiration");
 
 registerPlace({ name: "Innspiration", marker: innMarker, layer: innspirationLayer, tag: "Guild" });
 
