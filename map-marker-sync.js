@@ -14,6 +14,8 @@ function markerSyncMessage(message) {
   // Players can see shared positions but do not need editing messages.
   sharedMarkerStatus.textContent = PLAYER_MODE ? "" : message;
 }
+// Changing back to Player mode immediately clears GM-only sync messages.
+accessBar.querySelector('[data-mode="player"]').addEventListener("click", () => markerSyncMessage(""));
 function validateSharedPositions(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload) ||
       !payload.positions || typeof payload.positions !== "object" ||
