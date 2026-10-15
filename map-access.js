@@ -165,6 +165,7 @@ function setViewerMode(player) {
   if (player) mapAccess.passcode = "";
   map.closePopup();
   applyMapPolicy();
+  document.dispatchEvent(new Event("gaileia:viewmode"));
 }
 accessBar.querySelector('[data-mode="player"]').addEventListener("click", () => setViewerMode(true));
 accessBar.querySelector('[data-mode="gm"]').addEventListener("click", () => {

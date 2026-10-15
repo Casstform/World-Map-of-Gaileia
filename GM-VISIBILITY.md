@@ -33,24 +33,29 @@ NODE_PATH=/tmp/gaileia-tests/node_modules node tests/map-access.test.cjs
 
 The service source has separate authentication, validation, storage-isolation and write-conflict tests. No build step is required for the GitHub Pages map. Review the visual layout in a browser before merging; automated DOM tests do not assess rendering.
 
-## Marker position persistence
+## Shared marker positions
 
-When the GM enables **Drag Markers**, each draggable place marker saves its map-image pixel coordinates to browser `localStorage` on drag end. Stored IDs include marker type (for example, `capital:oceanside` versus `hometown:oceanside`) so names can repeat safely. Saved positions are loaded on the next visit in the same browser and remain independent of which overlays are enabled. The Envoys of the Fall marker first checks the new per-marker position and then falls back to its former `gaileia.party.pos.v1` value so existing party moves are retained.
+In GM mode, enable **Drag Markers**, close any open information panel, and move a marker. Wait for **Marker locations saved for all viewers.** The service saves the position across browsers and computers. Players load it without signing in, and open pages refresh every 20 seconds while visible or when returning to the tab.
 
-**Scope:** marker positions are browser-local, not shared between devices, browsers, users, or private-browsing sessions. The shared visibility service only stores visibility flags; cross-device marker synchronization would require a dedicated authenticated server endpoint. Canton/province emblems are not draggable, so this change does not affect their coordinates. No location is saved from Player mode.
+This applies to Envoys, Innspiration, capitals, settlements and hometowns. Canton/province emblems remain non-draggable. Stable IDs include marker type, so the capital and hometown named Oceanside do not collide.
 
-## Cross-browser marker synchronization (requires server deployment)
+`map-marker-sync.js` calls the existing service at `https://gaileia-visibility-service.casstform.chatgpt.site`:
 
-The frontend integration lives in `map-marker-sync.js`. It is intentionally staged separately until the externally deployed Gaileia Visibility Service is upgraded. The page continues to use browser-local positions if the shared endpoint is unavailable, and only an authenticated GM can upload changes. The visibility service's existing `/session` endpoint supplies the GM authentication; no new secrets or browser-stored password are needed.
+- Public `GET /map-markers` returns `{ positions: {}, revision: null }` initially, then a dictionary such as `{ "party:envoys-of-the-fall": { "x": 7200, "y": 7300 } }` plus an opaque revision.
+- Authenticated `PUT /map-markers` accepts `{ key, position: { x, y }, revision }`, merges only that marker into the shared dictionary and returns the full state. The existing GM password is used in memory only.
+- Positions are stored separately in R2 at `gaileia-map/marker-positions-v1.json`. Conditional writes reject stale revisions with 409; the client reloads and retries its queued move without deleting other marker positions.
+- Keys match `^[a-z]+:[a-z0-9]+(?:-[a-z0-9]+)*$` and are at most 96 characters. Coordinates are finite numbers in 0–16384. Maximum 2000 entries. Unauthorized, invalid and stale updates are rejected.
 
-**Required service contract:**
+Shared coordinates take precedence over browser-local fallback. Existing local positions with no shared entry stay local until you move that marker in GM mode. Unsent moves are stored separately in `gaileia.marker.pending.v1`, survive reloads and retry once connected and authenticated. Until the success message appears, a locally saved move is not guaranteed to appear on other computers. Returning to Player clears the in-memory password and prevents further uploads. No passwords are saved in localStorage.
 
-- `GET /map-markers` is readable without GM login and returns HTTP 200 JSON `{ "positions": {}, "revision": null }` for a new map.
-- The populated response must be `{ "positions": { "party:envoys-of-the-fall": { "x": 7200, "y": 7300 } }, "revision": "opaque-revision" }`.
-- `PUT /map-markers` requires `Authorization: Bearer <GM password>` and JSON `{ "key": "party:envoys-of-the-fall", "position": { "x": 7200, "y": 7300 }, "revision": null }`. It responds with the updated full GET payload.
-- Reject invalid/unauthenticated PUT requests (401/400), and stale revisions (409). Preserve writes to other marker keys and use atomic conditional storage updates, as for `/map-visibility`.
-- Store positions in separate R2 object `gaileia-map/marker-positions-v1.json` (not compendium or visibility storage). Accept keys matching `^[a-z]+:[a-z0-9]+(?:-[a-z0-9]+)*$` at most 96 chars; restrict `x` and `y` to finite numbers within 0–16384. Cap total entries (e.g. 2000) and use the existing site's CORS settings.
-- The frontend refreshes every 20 seconds while visible and on returning to the tab. Shared positions override local fallback when present. Missing shared positions retain existing local positions until the GM drags that marker. A successful authenticated drag publishes it for every browser. Read-only players can obtain positions without exposing the GM password.
-- If the endpoint fails, editing remains available and saves locally, but is **not shared**. The GM interface displays an explicit sync error rather than implying success.
+The prior `gaileia.party.pos.v1` position is still recognized. This browser retains fallback positions for offline use; an offline viewer may show the last position it received.
 
-**Deployment order:** Upgrade and test the Gaileia Visibility Service first, then merge this frontend branch. The existing website must not be switched to shared marker synchronization until the server contract is live. Confirm both browser isolation and R2 write-conditional behavior in server tests, and verify home-to-game-computer marker persistence with a genuine second browser. The external service source and deployment permissions were not available in this GitHub session.
+## Cross-context integration test
+
+With the service checkout available, the additional suite runs independent DOM and localStorage contexts against the actual Worker implementation using an isolated in-memory R2 substitute:
+
+```sh
+GAILEIA_SERVICE_WORKER=/absolute/path/to/service/worker/index.js NODE_PATH=/tmp/gaileia-tests/node_modules node tests/shared-markers.test.cjs
+```
+
+It verifies home-to-game-browser synchronization, public reads, fresh visits, concurrent marker edits and persistence/retry of an offline move across closing and reopening. The service suite additionally tests authentication, coordinate validation, CORS, atomic creation/update conflicts and isolation from compendium/map visibility data.

@@ -2,6 +2,7 @@
    Gaileia Visibility Service; local browser saves remain the offline fallback. */
 "use strict";
 const MARKER_SYNC_ENDPOINT = MAP_VISIBILITY_API + "/map-markers";
+const MARKER_PENDING_KEY = "gaileia.marker.pending.v1";
 const sharedMarkerState = {
   positions: {}, revision: null, ready: false, busy: false, pending: new Map()
 };
@@ -10,12 +11,33 @@ sharedMarkerStatus.className = "map-access-status";
 sharedMarkerStatus.setAttribute("role", "status");
 accessBar.append(sharedMarkerStatus);
 
+let lastMarkerSyncMessage = "";
+function persistPendingMarkerMoves() {
+  try { localStorage.setItem(MARKER_PENDING_KEY, JSON.stringify([...sharedMarkerState.pending])); }
+  catch { markerSyncMessage("Keep this page open until marker synchronization finishes."); }
+}
+// Only genuine unsent drags are queued; old local fallback positions are never bulk-published.
+try {
+  const pending = JSON.parse(localStorage.getItem(MARKER_PENDING_KEY) || "[]");
+  const knownIds = new Set([...markerEdit.markers].map(marker => marker._positionId));
+  if (Array.isArray(pending)) for (const entry of pending) {
+    if (Array.isArray(entry) && knownIds.has(entry[0]) && validMarkerPosition(entry[1])) {
+      sharedMarkerState.pending.set(entry[0], entry[1]);
+    }
+  }
+} catch { /* Invalid local state must not prevent the shared map from loading. */ }
 function markerSyncMessage(message) {
+  lastMarkerSyncMessage = message;
   // Players can see shared positions but do not need editing messages.
   sharedMarkerStatus.textContent = PLAYER_MODE ? "" : message;
 }
 // Changing back to Player mode immediately clears GM-only sync messages.
-accessBar.querySelector('[data-mode="player"]').addEventListener("click", () => markerSyncMessage(""));
+document.addEventListener("gaileia:viewmode", () => {
+  sharedMarkerStatus.textContent = PLAYER_MODE ? "" : lastMarkerSyncMessage;
+  applySharedPositions();
+  if (!PLAYER_MODE) void loadSharedPositions();
+});
+document.addEventListener("gaileia:editmode", () => applySharedPositions());
 function validateSharedPositions(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload) ||
       !payload.positions || typeof payload.positions !== "object" ||
@@ -104,7 +126,10 @@ async function flushSharedPositions() {
       }
       if (!response.ok) throw new Error("Marker save returned " + response.status);
       acceptSharedPositions(await response.json());
-      if (sharedMarkerState.pending.get(key) === position) sharedMarkerState.pending.delete(key);
+      if (sharedMarkerState.pending.get(key) === position) {
+        sharedMarkerState.pending.delete(key);
+        persistPendingMarkerMoves();
+      }
       applySharedPositions();
       conflicts = 0;
     }
@@ -121,7 +146,8 @@ async function flushSharedPositions() {
 function queueSharedMarkerPosition(key, position) {
   if (PLAYER_MODE || !mapAccess.passcode || !validMarkerPosition(position)) return;
   if (!markerEdit.markers || ![...markerEdit.markers].some(m => m._positionId === key)) return;
-  sharedMarkerState.pending.set(key, position);
+  sharedMarkerState.pending.set(key, { x: position.x, y: position.y });
+  persistPendingMarkerMoves();
   if (sharedMarkerState.ready) void flushSharedPositions();
   else markerSyncMessage("Saved in this browser; shared sync is currently unavailable.");
 }

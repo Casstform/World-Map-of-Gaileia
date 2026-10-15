@@ -2325,6 +2325,7 @@ applyMarkerDragLock();
   }
 
   map.getContainer().style.cursor = on ? "grab" : (ruler.enabled ? "crosshair" : "");
+  document.dispatchEvent(new Event("gaileia:editmode"));
 }
 
 function shimmerEditButton() {
