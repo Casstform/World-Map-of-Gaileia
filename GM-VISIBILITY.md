@@ -33,8 +33,29 @@ NODE_PATH=/tmp/gaileia-tests/node_modules node tests/map-access.test.cjs
 
 The service source has separate authentication, validation, storage-isolation and write-conflict tests. No build step is required for the GitHub Pages map. Review the visual layout in a browser before merging; automated DOM tests do not assess rendering.
 
-## Marker position persistence
+## Shared marker positions
 
-When the GM enables **Drag Markers**, each draggable place marker saves its map-image pixel coordinates to browser `localStorage` on drag end. Stored IDs include marker type (for example, `capital:oceanside` versus `hometown:oceanside`) so names can repeat safely. Saved positions are loaded on the next visit in the same browser and remain independent of which overlays are enabled. The Envoys of the Fall marker first checks the new per-marker position and then falls back to its former `gaileia.party.pos.v1` value so existing party moves are retained.
+In GM mode, enable **Drag Markers**, close any open information panel, and move a marker. Wait for **Marker locations saved for all viewers.** The service saves the position across browsers and computers. Players load it without signing in, and open pages refresh every 20 seconds while visible or when returning to the tab.
 
-**Scope:** marker positions are browser-local, not shared between devices, browsers, users, or private-browsing sessions. The shared visibility service only stores visibility flags; cross-device marker synchronization would require a dedicated authenticated server endpoint. Canton/province emblems are not draggable, so this change does not affect their coordinates. No location is saved from Player mode.
+This applies to Envoys, Innspiration, capitals, settlements and hometowns. Canton/province emblems remain non-draggable. Stable IDs include marker type, so the capital and hometown named Oceanside do not collide.
+
+`map-marker-sync.js` calls the existing service at `https://gaileia-visibility-service.casstform.chatgpt.site`:
+
+- Public `GET /map-markers` returns `{ positions: {}, revision: null }` initially, then a dictionary such as `{ "party:envoys-of-the-fall": { "x": 7200, "y": 7300 } }` plus an opaque revision.
+- Authenticated `PUT /map-markers` accepts `{ key, position: { x, y }, revision }`, merges only that marker into the shared dictionary and returns the full state. The existing GM password is used in memory only.
+- Positions are stored separately in R2 at `gaileia-map/marker-positions-v1.json`. Conditional writes reject stale revisions with 409; the client reloads and retries its queued move without deleting other marker positions.
+- Keys match `^[a-z]+:[a-z0-9]+(?:-[a-z0-9]+)*$` and are at most 96 characters. Coordinates are finite numbers in 0–16384. Maximum 2000 entries. Unauthorized, invalid and stale updates are rejected.
+
+Shared coordinates take precedence over browser-local fallback. Existing local positions with no shared entry stay local until you move that marker in GM mode. Unsent moves are stored separately in `gaileia.marker.pending.v1`, survive reloads and retry once connected and authenticated. Until the success message appears, a locally saved move is not guaranteed to appear on other computers. Returning to Player clears the in-memory password and prevents further uploads. No passwords are saved in localStorage.
+
+The prior `gaileia.party.pos.v1` position is still recognized. This browser retains fallback positions for offline use; an offline viewer may show the last position it received.
+
+## Cross-context integration test
+
+With the service checkout available, the additional suite runs independent DOM and localStorage contexts against the actual Worker implementation using an isolated in-memory R2 substitute:
+
+```sh
+GAILEIA_SERVICE_WORKER=/absolute/path/to/service/worker/index.js NODE_PATH=/tmp/gaileia-tests/node_modules node tests/shared-markers.test.cjs
+```
+
+It verifies home-to-game-browser synchronization, public reads, fresh visits, concurrent marker edits and persistence/retry of an offline move across closing and reopening. The service suite additionally tests authentication, coordinate validation, CORS, atomic creation/update conflicts and isolation from compendium/map visibility data.

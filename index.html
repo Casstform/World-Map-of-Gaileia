@@ -2246,6 +2246,7 @@ function setMarkersFaded(on) {
 function registerEditableMarker(marker, name, positionId) {
   if (!positionId) throw new Error("Every draggable marker needs a stable position ID");
   marker._placeName = name;
+  marker._positionId = positionId;
   const savedPosition = loadStoredMarkerPosition(positionId);
   if (savedPosition) marker.setLatLng(px(savedPosition.x, savedPosition.y));
   markerEdit.markers.add(marker);
@@ -2288,7 +2289,10 @@ function registerEditableMarker(marker, name, positionId) {
     const p = map.project(marker.getLatLng(), maxZoom);
     console.log(`${marker._placeName} -> ${p.x.toFixed(0)}/${p.y.toFixed(0)}`);
     if (!PLAYER_MODE && markerEdit.enabled) {
-      saveStoredMarkerPosition(positionId, { x: p.x, y: p.y });
+      const point = { x: p.x, y: p.y };
+      saveStoredMarkerPosition(positionId, point);
+      // Shared positions are uploaded only by an authenticated GM.
+      window.gaileiaSharedMarkerPositions?.enqueue(positionId, point);
     }
   });
 }
@@ -2321,6 +2325,7 @@ applyMarkerDragLock();
   }
 
   map.getContainer().style.cursor = on ? "grab" : (ruler.enabled ? "crosshair" : "");
+  document.dispatchEvent(new Event("gaileia:editmode"));
 }
 
 function shimmerEditButton() {
@@ -3588,5 +3593,6 @@ map.on("mousemove", (e) => {
 
 </script>
 <script src="map-access.js"></script>
+<script src="map-marker-sync.js"></script>
 </body>
 </html>

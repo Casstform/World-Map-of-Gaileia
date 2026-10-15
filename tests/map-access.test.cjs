@@ -17,12 +17,22 @@ w.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
 w.HTMLDialogElement.prototype.close = function () { this.open = false; this.dispatchEvent(new w.Event('close')); };
 w.AbortSignal.timeout = () => undefined;
 let saved = { settings: {}, revision: null };
+let shared = { positions: {}, revision: null };
 let offline = false;
 let calls = [];
 w.fetch = async (url, options = {}) => {
   calls.push({ url, options });
   if (offline) throw new TypeError('offline');
   if (url.endsWith('/session')) return { ok: options.headers.Authorization === 'Bearer test-password', status: 401 };
+  if (url.endsWith('/map-markers')) {
+    if (options.method === 'PUT') {
+      assert.equal(options.headers.Authorization, 'Bearer test-password');
+      const body = JSON.parse(options.body);
+      if (body.revision !== shared.revision) return { ok: false, status: 409 };
+      shared = { positions: { ...shared.positions, [body.key]: body.position }, revision: 'm' + calls.length };
+    }
+    return { ok: true, json: async () => structuredClone(shared) };
+  }
   if (options.method === 'PUT') {
     const body = JSON.parse(options.body);
     assert.equal(options.headers.Authorization, 'Bearer test-password');
@@ -32,11 +42,14 @@ w.fetch = async (url, options = {}) => {
 };
 w.eval(fs.readFileSync(require.resolve('leaflet/dist/leaflet-src.js'), 'utf8'));
 // Run in one script to expose shared top-level bindings in this test environment.
-w.eval(html.match(/<script>([\s\S]*?)<\/script>/)[1] + '\n' + fs.readFileSync(path.join(root, 'map-access.js'), 'utf8') + `
+w.eval(html.match(/<script>([\s\S]*?)<\/script>/)[1] + '\n' +
+  fs.readFileSync(path.join(root, 'map-access.js'), 'utf8') + '\n' +
+  fs.readFileSync(path.join(root, 'map-marker-sync.js'), 'utf8') + `
 window.testMap = { map, mapAccess, layerRules, legendRules, setViewerMode, setEditMode, markerEdit,
   openInnPanel, openPartyPanel, openCantonPanel, CANTON_MARKERS, cantonMarkerByName, sidePanelBody,
   layersControl, settlementsLayer, capitalsLayer, partyLayer, cantonsOverlay, cantonMarkersLayer,
-  scoreEntry, PLACE_INDEX, goToPlace, loadMapPolicy, saveMapSetting, acceptPolicy, applyMapPolicy };
+  scoreEntry, PLACE_INDEX, goToPlace, loadMapPolicy, saveMapSetting, acceptPolicy, applyMapPolicy,
+  sharedMarkerState, loadSharedPositions };
 `);
 const t = w.testMap;
 const tick = () => new Promise(r => setImmediate(r));
@@ -102,6 +115,15 @@ const label = name => [...w.document.querySelectorAll('.leaflet-control-layers-o
     assert(Math.abs(persisted.x - x) < 0.01);
     assert(Math.abs(persisted.y - y) < 0.01);
   }
+  // Uploads are authenticated; simulate a fresh browser with no local storage.
+  await tick();
+  assert.equal(shared.positions['party:envoys-of-the-fall'].x, 7200);
+  assert.equal(shared.positions['guild:innspiration'].x, 7050);
+  w.localStorage.removeItem('gaileia.marker.position.v1:party:envoys-of-the-fall');
+  partyEntry.marker.setLatLng(t.map.unproject([1000, 1000], 6));
+  t.setEditMode(false);
+  await t.loadSharedPositions();
+  assert(Math.abs(point(partyEntry.marker).x - 7200) < 0.01);
   // Leaflet updates must preserve nested groups and eye controls.
   t.map.addLayer(t.cantonsOverlay);
   t.map.removeLayer(t.cantonsOverlay);
@@ -120,6 +142,7 @@ const label = name => [...w.document.querySelectorAll('.leaflet-control-layers-o
   morel.marker.setLatLng(t.map.unproject([6000, 9200], 6));
   morel.marker.fire('dragend');
   assert.equal(w.localStorage.getItem('gaileia.marker.position.v1:capital:morel'), beforePlayerDrag);
+  assert.equal(shared.positions['capital:morel'].x, 5700);
   assert(t.sidePanelBody.textContent.includes('Description'));
   t.openPartyPanel();
   assert(!t.sidePanelBody.textContent.includes('Party Members'));
@@ -150,6 +173,6 @@ const label = name => [...w.document.querySelectorAll('.leaflet-control-layers-o
   assert(!t.sidePanelBody.textContent.includes('Description'));
   assert.equal(t.mapAccess.ready, false);
   assert.equal(label('Hometowns').querySelector('input').disabled, true);
-  console.log('Map DOM integration tests passed: authentication, persisted marker positions, panel isolation, legend rebuilds, search, drag locking, shared refresh and fail-closed policy.');
+  console.log('Map DOM integration tests passed: authentication, cross-browser marker sync, persisted marker positions, panel isolation, legend rebuilds, search, drag locking, shared refresh and fail-closed policy.');
   w.close();
 })().catch(error => { console.error(error); w.close(); process.exitCode = 1; });
