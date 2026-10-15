@@ -1,0 +1,501 @@
+{
+  "description": "Timestamped record of current published shared positions, with source-code fallbacks",
+  "recordedAtUtc": "2026-10-15T22:54:43.424Z",
+  "serviceEndpoint": "https://gaileia-visibility-service.casstform.chatgpt.site/map-markers",
+  "serviceRevision": "a577441ecd5eb30db7ce925b3ee6901f",
+  "coordinateSystem": "Map image pixels at maxZoom 6, x and y in 0..16384",
+  "totalKnownMarkers": 32,
+  "sharedOverrideCount": 1,
+  "sharedOverrides": {
+    "party:envoys-of-the-fall": {
+      "x": 6991,
+      "y": 7247
+    }
+  },
+  "markers": [
+    {
+      "id": "capital:morel",
+      "name": "Morel",
+      "category": "capital",
+      "draggable": true,
+      "original": {
+        "x": 5594,
+        "y": 9100
+      },
+      "atSnapshot": {
+        "x": 5594,
+        "y": 9100
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "capital:boin",
+      "name": "Boin",
+      "category": "capital",
+      "draggable": true,
+      "original": {
+        "x": 3748,
+        "y": 7272
+      },
+      "atSnapshot": {
+        "x": 3748,
+        "y": 7272
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "capital:azogek",
+      "name": "Azogek",
+      "category": "capital",
+      "draggable": true,
+      "original": {
+        "x": 5509,
+        "y": 6271
+      },
+      "atSnapshot": {
+        "x": 5509,
+        "y": 6271
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "capital:gaius",
+      "name": "Gaius",
+      "category": "capital",
+      "draggable": true,
+      "original": {
+        "x": 7035,
+        "y": 7227
+      },
+      "atSnapshot": {
+        "x": 7035,
+        "y": 7227
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "capital:turonia",
+      "name": "Turonia",
+      "category": "capital",
+      "draggable": true,
+      "original": {
+        "x": 8774,
+        "y": 3841
+      },
+      "atSnapshot": {
+        "x": 8774,
+        "y": 3841
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "capital:bandobras",
+      "name": "Bandobras",
+      "category": "capital",
+      "draggable": true,
+      "original": {
+        "x": 7502,
+        "y": 8179
+      },
+      "atSnapshot": {
+        "x": 7502,
+        "y": 8179
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "capital:ferumbras",
+      "name": "Ferumbras",
+      "category": "capital",
+      "draggable": true,
+      "original": {
+        "x": 9180,
+        "y": 10825
+      },
+      "atSnapshot": {
+        "x": 9180,
+        "y": 10825
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "capital:iolas",
+      "name": "Iolas",
+      "category": "capital",
+      "draggable": true,
+      "original": {
+        "x": 10347,
+        "y": 6481
+      },
+      "atSnapshot": {
+        "x": 10347,
+        "y": 6481
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "capital:nehiya",
+      "name": "Nehiya",
+      "category": "capital",
+      "draggable": true,
+      "original": {
+        "x": 12431,
+        "y": 11542
+      },
+      "atSnapshot": {
+        "x": 12431,
+        "y": 11542
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "capital:the-cauldron",
+      "name": "The Cauldron",
+      "category": "capital",
+      "draggable": true,
+      "original": {
+        "x": 13415,
+        "y": 8429
+      },
+      "atSnapshot": {
+        "x": 13415,
+        "y": 8429
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "capital:oceanside",
+      "name": "Oceanside",
+      "category": "capital",
+      "draggable": true,
+      "original": {
+        "x": 9738,
+        "y": 2245
+      },
+      "atSnapshot": {
+        "x": 9738,
+        "y": 2245
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "capital:lith-ulihm",
+      "name": "Lith-Ulihm",
+      "category": "capital",
+      "draggable": true,
+      "original": {
+        "x": 9894,
+        "y": 13529
+      },
+      "atSnapshot": {
+        "x": 9894,
+        "y": 13529
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "settlement:manikant",
+      "name": "Manikant",
+      "category": "settlement",
+      "draggable": true,
+      "original": {
+        "x": 6993,
+        "y": 8905
+      },
+      "atSnapshot": {
+        "x": 6993,
+        "y": 8905
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "settlement:sava",
+      "name": "Sava",
+      "category": "settlement",
+      "draggable": true,
+      "original": {
+        "x": 6408,
+        "y": 6977
+      },
+      "atSnapshot": {
+        "x": 6408,
+        "y": 6977
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "hometown:oceanside",
+      "name": "Oceanside",
+      "category": "hometown",
+      "draggable": true,
+      "character": "Oziza",
+      "original": {
+        "x": 9738,
+        "y": 2245
+      },
+      "atSnapshot": {
+        "x": 9738,
+        "y": 2245
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "hometown:impact-site",
+      "name": "Impact Site",
+      "category": "hometown",
+      "draggable": true,
+      "character": "WE4LAND",
+      "original": {
+        "x": 7391,
+        "y": 7383
+      },
+      "atSnapshot": {
+        "x": 7391,
+        "y": 7383
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "hometown:wyrdshell-enclave",
+      "name": "Wyrdshell Enclave",
+      "category": "hometown",
+      "draggable": true,
+      "character": "Ritsa",
+      "original": {
+        "x": 6188,
+        "y": 7075
+      },
+      "atSnapshot": {
+        "x": 6188,
+        "y": 7075
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "hometown:kahtay",
+      "name": "Kahtay",
+      "category": "hometown",
+      "draggable": true,
+      "character": "Saraik",
+      "original": {
+        "x": 8495,
+        "y": 8436
+      },
+      "atSnapshot": {
+        "x": 8495,
+        "y": 8436
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "canton:arda-end",
+      "name": "Arda End",
+      "category": "canton",
+      "draggable": false,
+      "original": {
+        "x": 5915,
+        "y": 6891
+      },
+      "atSnapshot": {
+        "x": 5915,
+        "y": 6891
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "canton:it-fir",
+      "name": "It Fir",
+      "category": "canton",
+      "draggable": false,
+      "original": {
+        "x": 6646,
+        "y": 6931
+      },
+      "atSnapshot": {
+        "x": 6646,
+        "y": 6931
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "canton:den-iru",
+      "name": "Den Iru",
+      "category": "canton",
+      "draggable": false,
+      "original": {
+        "x": 6436,
+        "y": 7434
+      },
+      "atSnapshot": {
+        "x": 6436,
+        "y": 7434
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "canton:da-reo",
+      "name": "Da Reo",
+      "category": "canton",
+      "draggable": false,
+      "original": {
+        "x": 6427,
+        "y": 8045
+      },
+      "atSnapshot": {
+        "x": 6427,
+        "y": 8045
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "canton:hie-porta",
+      "name": "Hie Porta",
+      "category": "canton",
+      "draggable": false,
+      "original": {
+        "x": 7081,
+        "y": 7474
+      },
+      "atSnapshot": {
+        "x": 7081,
+        "y": 7474
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "canton:fitch-glen",
+      "name": "Fitch Glen",
+      "category": "canton",
+      "draggable": false,
+      "original": {
+        "x": 7491,
+        "y": 7351
+      },
+      "atSnapshot": {
+        "x": 7491,
+        "y": 7351
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "canton:ga-zin",
+      "name": "Ga Zin",
+      "category": "canton",
+      "draggable": false,
+      "original": {
+        "x": 5545,
+        "y": 7115
+      },
+      "atSnapshot": {
+        "x": 5545,
+        "y": 7115
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "canton:la-sot",
+      "name": "La Sot",
+      "category": "canton",
+      "draggable": false,
+      "original": {
+        "x": 8121,
+        "y": 7603
+      },
+      "atSnapshot": {
+        "x": 8121,
+        "y": 7603
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "canton:milne-phi",
+      "name": "Milne Phi",
+      "category": "canton",
+      "draggable": false,
+      "original": {
+        "x": 6932,
+        "y": 6983
+      },
+      "atSnapshot": {
+        "x": 6932,
+        "y": 6983
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "canton:phl-sy",
+      "name": "Phl Sy",
+      "category": "canton",
+      "draggable": false,
+      "original": {
+        "x": 7735,
+        "y": 7240
+      },
+      "atSnapshot": {
+        "x": 7735,
+        "y": 7240
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "province:northgrass",
+      "name": "Northgrass",
+      "category": "province",
+      "draggable": false,
+      "original": {
+        "x": 6460,
+        "y": 6428
+      },
+      "atSnapshot": {
+        "x": 6460,
+        "y": 6428
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "party:envoys-of-the-fall",
+      "name": "Envoys of the Fall",
+      "category": "party",
+      "draggable": true,
+      "original": {
+        "x": 6993,
+        "y": 7246
+      },
+      "atSnapshot": {
+        "x": 6991,
+        "y": 7247
+      },
+      "positionSource": "shared-service"
+    },
+    {
+      "id": "guild:innspiration",
+      "name": "Innspiration",
+      "category": "guild",
+      "draggable": true,
+      "original": {
+        "x": 6993,
+        "y": 7246
+      },
+      "atSnapshot": {
+        "x": 6993,
+        "y": 7246
+      },
+      "positionSource": "code-default"
+    },
+    {
+      "id": "label:pilgrims-sea",
+      "name": "Pilgrim's Sea",
+      "category": "map-label",
+      "draggable": false,
+      "original": {
+        "x": 7456,
+        "y": 7150
+      },
+      "atSnapshot": {
+        "x": 7456,
+        "y": 7150
+      },
+      "positionSource": "code-default"
+    }
+  ]
+}
