@@ -18,6 +18,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: true
+          # This map repository contains many large imagery tiles; do not download them.
+          filter: blob:none
+          sparse-checkout: |
+            scripts
+            marker-position-backups
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
