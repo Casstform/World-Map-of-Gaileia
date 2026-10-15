@@ -35,7 +35,6 @@ accessBar.className = "map-access";
 accessBar.innerHTML = `<div class="map-access-modes" role="group" aria-label="Map viewer mode">
   <button type="button" data-mode="player" aria-pressed="true">Player</button>
   <button type="button" data-mode="gm" aria-pressed="false">GM</button></div>
-  <p class="map-access-help" hidden>Eyes control player access</p>
   <p class="map-access-status" role="status">Loading player visibility…</p>`;
 layersControl.getContainer().querySelector(".legend-body").prepend(accessBar);
 L.DomEvent.disableClickPropagation(accessBar);
@@ -97,7 +96,6 @@ function renderPanelVisibility() {
 function refreshAccessUI() {
   accessBar.querySelector('[data-mode="player"]').setAttribute("aria-pressed", String(PLAYER_MODE));
   accessBar.querySelector('[data-mode="gm"]').setAttribute("aria-pressed", String(!PLAYER_MODE));
-  accessBar.querySelector(".map-access-help").hidden = PLAYER_MODE;
   markerEdit.btn.hidden = PLAYER_MODE;
   markerEdit.btn.disabled = PLAYER_MODE;
   const container = layersControl.getContainer();
